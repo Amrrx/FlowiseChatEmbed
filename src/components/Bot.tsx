@@ -36,6 +36,7 @@ import { removeLocalStorageChatHistory, getLocalStorageChatflow, setLocalStorage
 import { cloneDeep } from 'lodash';
 import { FollowUpPromptBubble } from '@/components/bubbles/FollowUpPromptBubble';
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
+import { Watermark } from '@/components/Watermark';
 
 export type FileEvent<T = EventTarget> = {
   target: T;
@@ -1814,6 +1815,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               ref={chatContainer}
               class="overflow-y-scroll flex flex-col flex-grow min-w-full w-full px-3 pt-[70px] relative scrollable-container chatbot-chat-view scroll-smooth"
             >
+              <Watermark />
               <For each={[...messages()]}>
                 {(message, index) => {
                   return (

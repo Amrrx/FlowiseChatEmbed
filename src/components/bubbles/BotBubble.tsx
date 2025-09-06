@@ -404,12 +404,37 @@ export const BotBubble = (props: Props) => {
               </div>
             )}
           {props.showAgentMessages && props.message.agentReasoning && (
-            <details ref={botDetailsEl} class="mb-2 px-4 py-2 ml-2 chatbot-host-bubble rounded-[6px]">
-              <summary class="cursor-pointer">
-                <span class="italic">Agent Messages</span>
+            <details 
+              ref={botDetailsEl} 
+              class="mb-3 ml-2 chatbot-host-bubble overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.03) 50%, rgba(6, 182, 212, 0.05) 100%)',
+                'border-radius': '10px',
+                border: '1px solid rgba(59, 130, 246, 0.1)',
+                'box-shadow': '0 2px 12px rgba(59, 130, 246, 0.06)',
+                'backdrop-filter': 'blur(6px)',
+              }}
+            >
+              <summary 
+                class="cursor-pointer px-4 py-3 hover:bg-opacity-80 transition-all duration-200"
+                style={{
+                  'border-radius': '9px 9px 0 0',
+                  background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.06) 100%)',
+                }}
+              >
+                <span 
+                  class="italic font-medium"
+                  style={{ 
+                    color: 'rgba(59, 130, 246, 0.8)',
+                    'font-size': '14px',
+                    'letter-spacing': '0.2px'
+                  }}
+                >
+                  Agent Messages
+                </span>
               </summary>
-              <br />
-              <For each={props.message.agentReasoning}>
+              <div class="px-4 pb-3 pt-1">
+                <For each={props.message.agentReasoning}>
                 {(agent) => {
                   const agentMessages = agent.messages ?? [];
                   let msgContent = agent.instructions || (agentMessages.length > 1 ? agentMessages.join('\\n') : agentMessages[0]);
@@ -430,6 +455,7 @@ export const BotBubble = (props: Props) => {
                   );
                 }}
               </For>
+              </div>
             </details>
           )}
           {props.message.artifacts && props.message.artifacts.length > 0 && (
@@ -442,18 +468,55 @@ export const BotBubble = (props: Props) => {
             </div>
           )}
           {props.message.message && (
-            <span
-              ref={setBotMessageRef}
-              class="px-4 py-2 ml-2 max-w-full chatbot-host-bubble prose"
-              data-testid="host-bubble"
-              style={{
-                'background-color': props.backgroundColor ?? defaultBackgroundColor,
-                color: props.textColor ?? defaultTextColor,
-                'border-radius': '6px',
-                'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
-              }}
-            />
+            <div class="relative ml-2 max-w-full">
+              {/* Background with modern effects */}
+              <div
+                class="absolute inset-0 rounded-lg"
+                style={{
+                  background: `linear-gradient(135deg, ${props.backgroundColor ?? defaultBackgroundColor}f5 0%, ${props.backgroundColor ?? defaultBackgroundColor}e8 50%, ${props.backgroundColor ?? defaultBackgroundColor}f5 100%)`,
+                  'box-shadow': '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                }}
+              />
+              {/* Content */}
+              <span
+                ref={setBotMessageRef}
+                class="relative px-4 py-3 chatbot-host-bubble prose block"
+                data-testid="host-bubble"
+                style={{
+                  'background-color': 'transparent',
+                  color: props.textColor ?? defaultTextColor,
+                  'border-radius': '8px',
+                  'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
+                  'line-height': '1.6',
+                  'backdrop-filter': 'blur(8px)',
+                  position: 'relative',
+                  'z-index': '1',
+                }}
+              />
+            </div>
           )}
+          {/* Timestamp - Always visible when present */}
+          <Show when={props.message.dateTime}>
+            <div 
+              class={`flex justify-end mt-2 mr-2 ${props.showAvatar ? 'ml-10' : 'ml-2'}`}
+            >
+              <div
+                class="px-3 py-1 text-xs rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, rgba(107, 114, 128, 0.08) 0%, rgba(107, 114, 128, 0.12) 100%)',
+                  color: 'rgba(107, 114, 128, 0.7)',
+                  'font-weight': '500',
+                  'letter-spacing': '0.3px',
+                  'backdrop-filter': 'blur(4px)',
+                  border: '1px solid rgba(107, 114, 128, 0.1)',
+                  'box-shadow': '0 1px 3px rgba(0, 0, 0, 0.05)',
+                }}
+              >
+                {formatDateTime(props.message.dateTime, props?.dateTimeToggle?.date, props?.dateTimeToggle?.time)}
+              </div>
+            </div>
+          </Show>
           {props.message.action && (
             <div class="px-4 py-2 flex flex-row justify-start space-x-2">
               <For each={props.message.action.elements || []}>
@@ -523,29 +586,48 @@ export const BotBubble = (props: Props) => {
       <div>
         {props.chatFeedbackStatus && props.message.messageId && (
           <>
-            <div class={`flex items-center px-2 pb-2 ${props.showAvatar ? 'ml-10' : ''}`}>
-              <CopyToClipboardButton feedbackColor={props.feedbackColor} onClick={() => copyMessageToClipboard()} />
-              <Show when={copiedMessage()}>
-                <div class="copied-message" style={{ color: props.feedbackColor ?? defaultFeedbackColor }}>
-                  Copied!
-                </div>
-              </Show>
-              {rating() === '' || rating() === 'THUMBS_UP' ? (
-                <ThumbsUpButton feedbackColor={thumbsUpColor()} isDisabled={rating() === 'THUMBS_UP'} rating={rating()} onClick={onThumbsUpClick} />
-              ) : null}
-              {rating() === '' || rating() === 'THUMBS_DOWN' ? (
-                <ThumbsDownButton
-                  feedbackColor={thumbsDownColor()}
-                  isDisabled={rating() === 'THUMBS_DOWN'}
-                  rating={rating()}
-                  onClick={onThumbsDownClick}
-                />
-              ) : null}
-              <Show when={props.message.dateTime}>
-                <div class="text-sm text-gray-500 ml-2">
-                  {formatDateTime(props.message.dateTime, props?.dateTimeToggle?.date, props?.dateTimeToggle?.time)}
-                </div>
-              </Show>
+            <div
+              class={`flex items-center px-3 pb-3 pt-2 ${props.showAvatar ? 'ml-10' : ''}`}
+              style={{
+                background: 'linear-gradient(90deg, rgba(247, 248, 255, 0.3) 0%, rgba(247, 248, 255, 0.15) 50%, rgba(247, 248, 255, 0.3) 100%)',
+                'border-radius': '12px',
+                'backdrop-filter': 'blur(4px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.04)',
+                margin: '8px 0',
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              <div class="flex items-center space-x-2">
+                <CopyToClipboardButton feedbackColor={props.feedbackColor} onClick={() => copyMessageToClipboard()} />
+                <Show when={copiedMessage()}>
+                  <div 
+                    class="copied-message animate-pulse"
+                    style={{ 
+                      color: props.feedbackColor ?? defaultFeedbackColor,
+                      'font-weight': '500',
+                      'font-size': '12px'
+                    }}
+                  >
+                    Copied!
+                  </div>
+                </Show>
+                {rating() === '' || rating() === 'THUMBS_UP' ? (
+                  <div style={{ transition: 'all 0.2s ease-in-out', transform: rating() === 'THUMBS_UP' ? 'scale(1.1)' : 'scale(1)' }}>
+                    <ThumbsUpButton feedbackColor={thumbsUpColor()} isDisabled={rating() === 'THUMBS_UP'} rating={rating()} onClick={onThumbsUpClick} />
+                  </div>
+                ) : null}
+                {rating() === '' || rating() === 'THUMBS_DOWN' ? (
+                  <div style={{ transition: 'all 0.2s ease-in-out', transform: rating() === 'THUMBS_DOWN' ? 'scale(1.1)' : 'scale(1)' }}>
+                    <ThumbsDownButton
+                      feedbackColor={thumbsDownColor()}
+                      isDisabled={rating() === 'THUMBS_DOWN'}
+                      rating={rating()}
+                      onClick={onThumbsDownClick}
+                    />
+                  </div>
+                ) : null}
+              </div>
             </div>
             <Show when={showFeedbackContentDialog()}>
               <FeedbackContentDialog

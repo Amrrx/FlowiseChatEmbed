@@ -1,7 +1,7 @@
 import { isMobile } from '@/utils/isMobileSignal';
 import { createEffect, createSignal, Show } from 'solid-js';
 import { isNotEmpty } from '@/utils/index';
-import { DefaultAvatar } from './DefaultAvatar';
+import { AfaqyAvatar } from './AfaqyAvatar';
 
 export const Avatar = (props: { initialAvatarSrc?: string }) => {
   const [avatarSrc, setAvatarSrc] = createSignal(props.initialAvatarSrc);
@@ -11,7 +11,7 @@ export const Avatar = (props: { initialAvatarSrc?: string }) => {
   });
 
   return (
-    <Show when={isNotEmpty(avatarSrc())} keyed fallback={<DefaultAvatar />}>
+    <Show when={isNotEmpty(avatarSrc())} keyed fallback={<AfaqyAvatar />}>
       <figure
         class={
           'flex justify-center items-center rounded-full text-white relative flex-shrink-0 ' + (isMobile() ? 'w-6 h-6 text-sm' : 'w-10 h-10 text-xl')
