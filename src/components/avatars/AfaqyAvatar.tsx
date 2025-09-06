@@ -34,7 +34,7 @@ export const AfaqyAvatar = () => {
           <circle cx="76.5" cy="-1.5" r="29" stroke="#FF6B35" stroke-width="5" />
           <path d="M-49.8224 22L-15.5 -40.7879L18.8224 22H-49.8224Z" stroke="#F0F8FF" stroke-width="5" />
         </g>
-        
+
         {/* AFAQY AI Text */}
         <text
           x="37.5"

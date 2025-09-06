@@ -404,8 +404,8 @@ export const BotBubble = (props: Props) => {
               </div>
             )}
           {props.showAgentMessages && props.message.agentReasoning && (
-            <details 
-              ref={botDetailsEl} 
+            <details
+              ref={botDetailsEl}
               class="mb-3 ml-2 chatbot-host-bubble overflow-hidden"
               style={{
                 background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.03) 50%, rgba(6, 182, 212, 0.05) 100%)',
@@ -415,19 +415,19 @@ export const BotBubble = (props: Props) => {
                 'backdrop-filter': 'blur(6px)',
               }}
             >
-              <summary 
+              <summary
                 class="cursor-pointer px-4 py-3 hover:bg-opacity-80 transition-all duration-200"
                 style={{
                   'border-radius': '9px 9px 0 0',
                   background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.06) 100%)',
                 }}
               >
-                <span 
+                <span
                   class="italic font-medium"
-                  style={{ 
+                  style={{
                     color: 'rgba(59, 130, 246, 0.8)',
                     'font-size': '14px',
-                    'letter-spacing': '0.2px'
+                    'letter-spacing': '0.2px',
                   }}
                 >
                   Agent Messages
@@ -435,26 +435,26 @@ export const BotBubble = (props: Props) => {
               </summary>
               <div class="px-4 pb-3 pt-1">
                 <For each={props.message.agentReasoning}>
-                {(agent) => {
-                  const agentMessages = agent.messages ?? [];
-                  let msgContent = agent.instructions || (agentMessages.length > 1 ? agentMessages.join('\\n') : agentMessages[0]);
-                  if (agentMessages.length === 0 && !agent.instructions) msgContent = `<p>Finished</p>`;
-                  return (
-                    <AgentReasoningBubble
-                      agentName={agent.agentName ?? ''}
-                      agentMessage={msgContent}
-                      agentArtifacts={agent.artifacts}
-                      backgroundColor={props.backgroundColor}
-                      textColor={props.textColor}
-                      fontSize={props.fontSize}
-                      apiHost={props.apiHost}
-                      chatflowid={props.chatflowid}
-                      chatId={props.chatId}
-                      renderHTML={props.renderHTML}
-                    />
-                  );
-                }}
-              </For>
+                  {(agent) => {
+                    const agentMessages = agent.messages ?? [];
+                    let msgContent = agent.instructions || (agentMessages.length > 1 ? agentMessages.join('\\n') : agentMessages[0]);
+                    if (agentMessages.length === 0 && !agent.instructions) msgContent = `<p>Finished</p>`;
+                    return (
+                      <AgentReasoningBubble
+                        agentName={agent.agentName ?? ''}
+                        agentMessage={msgContent}
+                        agentArtifacts={agent.artifacts}
+                        backgroundColor={props.backgroundColor}
+                        textColor={props.textColor}
+                        fontSize={props.fontSize}
+                        apiHost={props.apiHost}
+                        chatflowid={props.chatflowid}
+                        chatId={props.chatId}
+                        renderHTML={props.renderHTML}
+                      />
+                    );
+                  }}
+                </For>
               </div>
             </details>
           )}
@@ -473,7 +473,9 @@ export const BotBubble = (props: Props) => {
               <div
                 class="absolute inset-0 rounded-lg"
                 style={{
-                  background: `linear-gradient(135deg, ${props.backgroundColor ?? defaultBackgroundColor}f5 0%, ${props.backgroundColor ?? defaultBackgroundColor}e8 50%, ${props.backgroundColor ?? defaultBackgroundColor}f5 100%)`,
+                  background: `linear-gradient(135deg, ${props.backgroundColor ?? defaultBackgroundColor}f5 0%, ${
+                    props.backgroundColor ?? defaultBackgroundColor
+                  }e8 50%, ${props.backgroundColor ?? defaultBackgroundColor}f5 100%)`,
                   'box-shadow': '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
                   border: '1px solid rgba(255, 255, 255, 0.15)',
                 }}
@@ -498,9 +500,7 @@ export const BotBubble = (props: Props) => {
           )}
           {/* Timestamp - Always visible when present */}
           <Show when={props.message.dateTime}>
-            <div 
-              class={`flex justify-end mt-2 mr-2 ${props.showAvatar ? 'ml-10' : 'ml-2'}`}
-            >
+            <div class={`flex justify-end mt-2 mr-2 ${props.showAvatar ? 'ml-10' : 'ml-2'}`}>
               <div
                 class="px-3 py-1 text-xs rounded-full"
                 style={{
@@ -601,12 +601,12 @@ export const BotBubble = (props: Props) => {
               <div class="flex items-center space-x-2">
                 <CopyToClipboardButton feedbackColor={props.feedbackColor} onClick={() => copyMessageToClipboard()} />
                 <Show when={copiedMessage()}>
-                  <div 
+                  <div
                     class="copied-message animate-pulse"
-                    style={{ 
+                    style={{
                       color: props.feedbackColor ?? defaultFeedbackColor,
                       'font-weight': '500',
-                      'font-size': '12px'
+                      'font-size': '12px',
                     }}
                   >
                     Copied!
@@ -614,7 +614,12 @@ export const BotBubble = (props: Props) => {
                 </Show>
                 {rating() === '' || rating() === 'THUMBS_UP' ? (
                   <div style={{ transition: 'all 0.2s ease-in-out', transform: rating() === 'THUMBS_UP' ? 'scale(1.1)' : 'scale(1)' }}>
-                    <ThumbsUpButton feedbackColor={thumbsUpColor()} isDisabled={rating() === 'THUMBS_UP'} rating={rating()} onClick={onThumbsUpClick} />
+                    <ThumbsUpButton
+                      feedbackColor={thumbsUpColor()}
+                      isDisabled={rating() === 'THUMBS_UP'}
+                      rating={rating()}
+                      onClick={onThumbsUpClick}
+                    />
                   </div>
                 ) : null}
                 {rating() === '' || rating() === 'THUMBS_DOWN' ? (
