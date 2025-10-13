@@ -4,6 +4,7 @@ import { Marked } from '@ts-stack/markdown';
 import { FeedbackRatingType, sendFeedbackQuery, sendFileDownloadQuery, updateFeedbackQuery } from '@/queries/sendMessageQuery';
 import { FileUpload, IAction, MessageType } from '../Bot';
 import { CopyToClipboardButton, ThumbsDownButton, ThumbsUpButton } from '../buttons/FeedbackButtons';
+import { TTSButton } from '../buttons/TTSButton';
 import FeedbackContentDialog from '../FeedbackContentDialog';
 import { AgentReasoningBubble } from './AgentReasoningBubble';
 import { TickIcon, XIcon } from '../icons';
@@ -32,6 +33,12 @@ type Props = {
   renderHTML?: boolean;
   handleActionClick: (elem: any, action: IAction | undefined | null) => void;
   handleSourceDocumentsClick: (src: any) => void;
+  // TTS props
+  isTTSEnabled?: boolean;
+  isTTSLoading?: Record<string, boolean>;
+  isTTSPlaying?: Record<string, boolean>;
+  handleTTSClick?: (messageId: string, messageText: string) => void;
+  handleTTSStop?: (messageId: string) => void;
 };
 
 const defaultBackgroundColor = '#f7f8ff';
@@ -544,7 +551,7 @@ export const BotBubble = (props: Props) => {
                           {action.label}
                         </button>
                       ) : (
-                        <button>{action.label}</button>
+                        <button type="button">{action.label}</button>
                       )}
                     </>
                   );
@@ -584,21 +591,48 @@ export const BotBubble = (props: Props) => {
         )}
       </div>
       <div>
-        {props.chatFeedbackStatus && props.message.messageId && (
-          <>
-            <div
-              class={`flex items-center px-3 pb-3 pt-2 ${props.showAvatar ? 'ml-10' : ''}`}
-              style={{
-                background: 'linear-gradient(90deg, rgba(247, 248, 255, 0.3) 0%, rgba(247, 248, 255, 0.15) 50%, rgba(247, 248, 255, 0.3) 100%)',
-                'border-radius': '12px',
-                'backdrop-filter': 'blur(4px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.04)',
-                margin: '8px 0',
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              <div class="flex items-center space-x-2">
+        <div
+          class={`flex items-center px-3 pb-3 pt-2 ${props.showAvatar ? 'ml-10' : ''}`}
+          style={{
+            background: 'linear-gradient(90deg, rgba(247, 248, 255, 0.3) 0%, rgba(247, 248, 255, 0.15) 50%, rgba(247, 248, 255, 0.3) 100%)',
+            'border-radius': '12px',
+            'backdrop-filter': 'blur(4px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.04)',
+            margin: '8px 0',
+            transition: 'all 0.2s ease-in-out',
+          }}
+        >
+          <div class="flex items-center space-x-2">
+            <Show when={props.isTTSEnabled && (props.message.id || props.message.messageId)}>
+              <TTSButton
+                feedbackColor={props.feedbackColor}
+                isLoading={(() => {
+                  const messageId = props.message.id || props.message.messageId;
+                  return !!(messageId && props.isTTSLoading?.[messageId]);
+                })()}
+                isPlaying={(() => {
+                  const messageId = props.message.id || props.message.messageId;
+                  return !!(messageId && props.isTTSPlaying?.[messageId]);
+                })()}
+                onClick={() => {
+                  const messageId = props.message.id || props.message.messageId;
+                  if (!messageId) return;
+
+                  const messageText = props.message.message || '';
+                  if (props.isTTSLoading?.[messageId]) {
+                    return;
+                  }
+                  if (props.isTTSPlaying?.[messageId]) {
+                    props.handleTTSStop?.(messageId);
+                  } else {
+                    props.handleTTSClick?.(messageId, messageText);
+                  }
+                }}
+              />
+            </Show>
+            {props.chatFeedbackStatus && props.message.messageId && (
+              <>
                 <CopyToClipboardButton feedbackColor={props.feedbackColor} onClick={() => copyMessageToClipboard()} />
                 <Show when={copiedMessage()}>
                   <div
@@ -632,19 +666,19 @@ export const BotBubble = (props: Props) => {
                     />
                   </div>
                 ) : null}
-              </div>
-            </div>
-            <Show when={showFeedbackContentDialog()}>
-              <FeedbackContentDialog
-                isOpen={showFeedbackContentDialog()}
-                onClose={() => setShowFeedbackContentModal(false)}
-                onSubmit={submitFeedbackContent}
-                backgroundColor={props.backgroundColor}
-                textColor={props.textColor}
-              />
-            </Show>
-          </>
-        )}
+              </>
+            )}
+          </div>
+        </div>
+        <Show when={showFeedbackContentDialog()}>
+          <FeedbackContentDialog
+            isOpen={showFeedbackContentDialog()}
+            onClose={() => setShowFeedbackContentModal(false)}
+            onSubmit={submitFeedbackContent}
+            backgroundColor={props.backgroundColor}
+            textColor={props.textColor}
+          />
+        </Show>
       </div>
     </div>
   );
