@@ -82,6 +82,7 @@ export type ChatWindowTheme = {
   clearChatOnReload?: boolean;
   dateTimeToggle?: DateTimeToggleTheme;
   renderHTML?: boolean;
+  autoMessage?: AutoMessageTheme;
 };
 
 export type ButtonTheme = {
@@ -125,4 +126,9 @@ export type DisclaimerPopUpTheme = {
 export type DateTimeToggleTheme = {
   date?: boolean;
   time?: boolean;
+};
+
+export type AutoMessageTheme = {
+  enabled?: boolean;
+  message?: string;
 };

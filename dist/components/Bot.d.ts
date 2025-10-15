@@ -80,6 +80,10 @@ export type MessageType = {
 };
 type observerConfigType = (accessor: string | boolean | object | MessageType[]) => void;
 export type observersConfigType = Record<'observeUserInput' | 'observeLoading' | 'observeMessages', observerConfigType>;
+export type AutoMessageConfig = {
+    enabled?: boolean;
+    message?: string;
+};
 export type BotProps = {
     chatflowid: string;
     apiHost?: string;
@@ -117,6 +121,7 @@ export type BotProps = {
     disclaimer?: DisclaimerPopUpTheme;
     dateTimeToggle?: DateTimeToggleTheme;
     renderHTML?: boolean;
+    autoMessage?: AutoMessageConfig;
     closeBot?: () => void;
 };
 export type LeadsConfig = {

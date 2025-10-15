@@ -19,100 +19,44 @@
 <body>
     <div id="root"></div>
     <script type="module">
-        import Chatbot from 'https://cdn.jsdelivr.net/gh/Amrrx/FlowiseChatEmbed@3.0.4/dist/web.js'
+        import Chatbot from './web.js'
 
         async function initializeChatbot() {
             try {
                 // Configuration: Set USE_CONTEXT_API to false to skip the context request
-                const USE_CONTEXT_API = true; // Change to true to enable context API
 
-                let chatflowConfig = {};
-
-                if (USE_CONTEXT_API) {
-                    console.log('Fetching context from API...');
-
-                    // Hardcoded values for context API
-                    const token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vYXBpLmFmYXF5LnByby9hdXRoL2xvZ2luIiwiaWF0IjoxNzU0MTQ5MjI3LCJleHAiOjE3NTY3NDEyMjcsIm5iZiI6MTc1NDE0OTIyNywianRpIjoiZFBkUGpNRDA5YlcwUHFKaiIsInN1YiI6IjVlNjY1NWJmMDNlZDUyZTFhYjc5ZDMwMSIsInBydiI6IjI3MGVjZmM3ZWEzZWQ5MzdlYTg0OTM2MmEzYTUwOTEwYzZkOGNlNGYifQ.vcqAswOK_LxkmIcY84ZRH75wUKHRsHf0-EP9cmBvbZo";
-                    const metadata = {
-                        userToken: "electronics",
-                        environment: "production",
-                        clientType: "web"
-                    };
-
-                    try {
-                        // Call context endpoint
-                        const response = await fetch('http://localhost:9099/mcp_context/context', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'Access-Control-Allow-Origin': '*',
-                            },
-                            body: JSON.stringify({
-                                token: token,
-                                user_id: "user123",
-                                metadata: metadata
-                            })
-                        });
-
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-
-                        const contextData = await response.json();
-
-                        if (!contextData.success) {
-                            throw new Error(contextData.message || 'Failed to create context');
-                        }
-
-                        // Use context data in chatflow config
-                        chatflowConfig = {
-                            vars: {
-                                userId: contextData.userId,
-                                userToken: contextData.userToken,
-                                context_id: contextData.context_id,
-                                ...contextData.metadata
-                            }
-                        };
-
-                        console.log('Context API successful, using contextual configuration');
-                    } catch (contextError) {
-                        console.warn('Context API failed, falling back to basic configuration:', contextError.message);
-                        console.log("Hiiiiiiiiiiii, this is an error")
-                        // Fall back to empty config if context API fails
-                        chatflowConfig = {};
-                    }
-                } else {
-                    console.log('Context API disabled, using basic configuration');
-                }
 
                 // Initialize chatbot with enhanced header
                 Chatbot.init({
-                    chatflowid: "fa3b8217-4e6d-4d27-9469-941d76f76a06",
+                    chatflowid: "a4bb36ce-c799-4e28-b36a-bbb2cbc9c8fc",
                     apiHost: "http://localhost:3000",
-                    chatflowConfig: chatflowConfig,
+                    chatflowConfig: {
+                        sessionId: `session_${Date.now()}`,
+                        vars: {
+                            userId: "A User ID",
+                            userToken: "A User Token",
+                            context_id: "A Context ID",
+                            metadata: {}
+                        }
+                    },
 
                     // Enhanced header configuration
                     showTitle: true,
                     assistantName: "Mosaad AI",
-
-                    onInit: () => {
-                        console.log('Chatbot initialized with enhanced header!');
-                    },
                     observersConfig: {
                         // (optional) Allows you to execute code in parent based upon signal observations within the chatbot.
                         // The userinput field submitted to bot ("" when reset by bot)
-                        observeUserInput: (userInput) => {
-                            console.log({ userInput });
-                        },
+                        // observeUserInput: (userInput) => {
+                        //     console.log({ userInput });
+                        // },
                         // The bot message stack has changed
-                        observeMessages: (messages) => {
-                            console.log({ messages });
-                        },
+                        // observeMessages: (messages) => {
+                        //     console.log({ messages });
+                        // },
                         // The bot loading signal changed
-                        observeLoading: (loading) => {
-                            console.log({ loading });
-                        },
+                        // observeLoading: (loading) => {
+                        //     console.log({ loading });
+                        // },
                     },
                     theme: {
                         button: {
@@ -184,7 +128,7 @@
                                 backgroundColor: '#ffffff',
                                 textColor: '#303235',
                                 sendButtonColor: '#3B81F6',
-                                maxChars: 50,
+                                maxChars: 250,
                                 maxCharsWarningMessage: 'You exceeded the characters limit. Please input less than 50 characters.',
                                 autoFocus: true, // If not used, autofocus is disabled on mobile and enabled on desktop. true enables it on both, false disables it on both.
                                 sendMessageSound: true,
@@ -203,6 +147,10 @@
                                 text: 'Powered By',
                                 company: 'Afaqy',
                                 companyLink: 'https://afaqy.com',
+                            },
+                            autoMessage: {
+                                enabled: true,
+                                message: 'Hello! I am visiting from {currentPage} with session ID {sessionId}. Current timestamp is {timestamp}.'
                             }
                         }
                     }

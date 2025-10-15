@@ -139,6 +139,11 @@ type IUploads = {
 type observerConfigType = (accessor: string | boolean | object | MessageType[]) => void;
 export type observersConfigType = Record<'observeUserInput' | 'observeLoading' | 'observeMessages', observerConfigType>;
 
+export type AutoMessageConfig = {
+  enabled?: boolean;
+  message?: string;
+};
+
 export type BotProps = {
   chatflowid: string;
   apiHost?: string;
@@ -174,6 +179,7 @@ export type BotProps = {
   disclaimer?: DisclaimerPopUpTheme;
   dateTimeToggle?: DateTimeToggleTheme;
   renderHTML?: boolean;
+  autoMessage?: AutoMessageConfig;
   closeBot?: () => void;
 };
 
@@ -453,6 +459,22 @@ const FormInputView = (props: {
       </div>
     </div>
   );
+};
+
+const replaceMessageVariables = (message: string, sessionId: string): string => {
+  const variables: Record<string, string> = {
+    '{sessionId}': sessionId,
+    '{timestamp}': Date.now().toString(),
+    '{currentPage}': window.location.href,
+    '{currentPath}': window.location.pathname,
+    '{currentDomain}': window.location.hostname,
+  };
+
+  let replacedMessage = message;
+  for (const [variable, value] of Object.entries(variables)) {
+    replacedMessage = replacedMessage.replace(new RegExp(variable.replace(/[{}]/g, '\\$&'), 'g'), value);
+  }
+  return replacedMessage;
 };
 
 export const Bot = (botProps: BotProps & { class?: string }) => {
@@ -1470,6 +1492,82 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         },
       ]);
     };
+  });
+
+  // Auto-message functionality
+  createEffect(() => {
+    const shouldSendAutoMessage = () => {
+      if (!props.autoMessage?.enabled || !props.autoMessage?.message) {
+        return false;
+      }
+
+      const autoMessageKey = `autoMessageSent_${props.chatflowid}_${chatId()}`;
+      const hasBeenSent = sessionStorage.getItem(autoMessageKey);
+
+      return !hasBeenSent && !loading() && messages().length > 0 && chatId();
+    };
+
+    if (shouldSendAutoMessage()) {
+      const autoMessageKey = `autoMessageSent_${props.chatflowid}_${chatId()}`;
+      sessionStorage.setItem(autoMessageKey, 'true');
+
+      const messageWithVariables = replaceMessageVariables(props.autoMessage!.message!, chatId());
+
+      setTimeout(() => {
+        const body: IncomingInput = {
+          question: messageWithVariables,
+          chatId: chatId(),
+        };
+
+        if (props.chatflowConfig) body.overrideConfig = props.chatflowConfig;
+
+        if (isChatFlowAvailableToStream()) {
+          fetchResponseFromEventStream(props.chatflowid, body);
+        } else {
+          sendMessageQuery({
+            chatflowid: props.chatflowid,
+            apiHost: props.apiHost,
+            body,
+            onRequest: props.onRequest,
+          }).then((result) => {
+            if (result.data) {
+              const data = result.data;
+
+              let text = '';
+              if (data.text) text = data.text;
+              else if (data.json) text = JSON.stringify(data.json, null, 2);
+              else text = JSON.stringify(data, null, 2);
+
+              if (data?.chatId) setChatId(data.chatId);
+
+              playReceiveSound();
+
+              setMessages((prevMessages) => {
+                const allMessages = [...cloneDeep(prevMessages)];
+                const newMessage: MessageType = {
+                  messageId: data.chatMessageId,
+                  message: text,
+                  type: 'apiMessage' as messageType,
+                };
+
+                if (data.sourceDocuments) newMessage.sourceDocuments = data.sourceDocuments;
+                if (data.fileAnnotations) newMessage.fileAnnotations = data.fileAnnotations;
+                if (data.agentReasoning) newMessage.agentReasoning = data.agentReasoning;
+                if (data.action) newMessage.action = data.action;
+                if (data.artifacts) newMessage.artifacts = data.artifacts;
+
+                allMessages.push(newMessage);
+                addChatMessage(allMessages);
+                return allMessages;
+              });
+
+              setLoading(false);
+              scrollToBottom();
+            }
+          });
+        }
+      }, 500);
+    }
   });
 
   // TTS sourceBuffer updateend listener management
