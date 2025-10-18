@@ -490,7 +490,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [sourcePopupOpen, setSourcePopupOpen] = createSignal(false);
   const [sourcePopupSrc, setSourcePopupSrc] = createSignal({});
   const [messages, setMessages] = createSignal<MessageType[]>(
-    (props.showWelcomeMessage ?? true)
+    props.showWelcomeMessage ?? true
       ? [
           {
             message: props.welcomeMessage ?? defaultWelcomeMessage,
@@ -1262,14 +1262,15 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         (props.chatflowConfig?.vars as any)?.customerId ? `${(props.chatflowConfig?.vars as any).customerId.toString()}+${uuidv4()}` : uuidv4(),
       );
       setUploadedFiles([]);
-      const messages: MessageType[] = (props.showWelcomeMessage ?? true)
-        ? [
-            {
-              message: props.welcomeMessage ?? defaultWelcomeMessage,
-              type: 'apiMessage',
-            },
-          ]
-        : [];
+      const messages: MessageType[] =
+        props.showWelcomeMessage ?? true
+          ? [
+              {
+                message: props.welcomeMessage ?? defaultWelcomeMessage,
+                type: 'apiMessage',
+              },
+            ]
+          : [];
       if (leadsConfig()?.status && !getLocalStorageChatflow(props.chatflowid)?.lead) {
         messages.push({ message: '', type: 'leadCaptureMessage' });
       }
