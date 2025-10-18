@@ -150,6 +150,7 @@ export type BotProps = {
   onRequest?: (request: RequestInit) => Promise<void>;
   chatflowConfig?: Record<string, unknown>;
   backgroundColor?: string;
+  showWelcomeMessage?: boolean;
   welcomeMessage?: string;
   errorMessage?: string;
   botMessage?: BotMessageTheme;
@@ -489,12 +490,14 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [sourcePopupOpen, setSourcePopupOpen] = createSignal(false);
   const [sourcePopupSrc, setSourcePopupSrc] = createSignal({});
   const [messages, setMessages] = createSignal<MessageType[]>(
-    [
-      {
-        message: props.welcomeMessage ?? defaultWelcomeMessage,
-        type: 'apiMessage',
-      },
-    ],
+    props.showWelcomeMessage ?? true
+      ? [
+          {
+            message: props.welcomeMessage ?? defaultWelcomeMessage,
+            type: 'apiMessage',
+          },
+        ]
+      : [],
     { equals: false },
   );
 
@@ -1259,12 +1262,15 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         (props.chatflowConfig?.vars as any)?.customerId ? `${(props.chatflowConfig?.vars as any).customerId.toString()}+${uuidv4()}` : uuidv4(),
       );
       setUploadedFiles([]);
-      const messages: MessageType[] = [
-        {
-          message: props.welcomeMessage ?? defaultWelcomeMessage,
-          type: 'apiMessage',
-        },
-      ];
+      const messages: MessageType[] =
+        props.showWelcomeMessage ?? true
+          ? [
+              {
+                message: props.welcomeMessage ?? defaultWelcomeMessage,
+                type: 'apiMessage',
+              },
+            ]
+          : [];
       if (leadsConfig()?.status && !getLocalStorageChatflow(props.chatflowid)?.lead) {
         messages.push({ message: '', type: 'leadCaptureMessage' });
       }
@@ -1867,7 +1873,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       loading() ||
       !props.chatflowid ||
       (leadsConfig()?.status && !isLeadSaved()) ||
-      (messagesArray[messagesArray.length - 1].action && Object.keys(messagesArray[messagesArray.length - 1].action as any).length > 0);
+      (messagesArray.length > 0 &&
+        messagesArray[messagesArray.length - 1].action &&
+        Object.keys(messagesArray[messagesArray.length - 1].action as any).length > 0);
     if (disabled) {
       return true;
     }

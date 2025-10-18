@@ -1,0 +1,126 @@
+<!--
+  Full Page Chat Mode Test
+
+  This file demonstrates the full-page/embedded chat interface.
+  The chat fills the entire container or page.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowise Full Page Chat</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #chat-container {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+
+<body>
+    <flowise-fullchatbot id="chat-container"></flowise-fullchatbot>
+
+    <script type="module">
+        import Chatbot from './web.js'
+
+        async function initializeChatbot() {
+            try {
+                // Initialize full-page chatbot
+                Chatbot.initFull({
+                    chatflowid: "a4bb36ce-c799-4e28-b36a-bbb2cbc9c8fc",
+                    apiHost: "http://localhost:3000",
+                    id: 'chat-container', // Optional: target specific element
+                    chatflowConfig: {
+                        sessionId: `session_${Date.now()}`,
+                        vars: {
+                            userId: "A User ID",
+                            userToken: "A User Token",
+                            context_id: "A Context ID",
+                            metadata: {}
+                        }
+                    },
+                    theme: {
+                        chatWindow: {
+                            showTitle: true,
+                            showAgentMessages: true,
+                            title: 'AVL Agent - Full Page',
+                            titleBackgroundColor: '#3B81F6',
+                            titleTextColor: '#ffffff',
+                            showWelcomeMessage: true,
+                            welcomeMessage: 'Hello! This is the full-page chat mode. How can I assist you today?',
+                            errorMessage: 'Sorry, something went wrong. Please try again.',
+                            backgroundColor: '#ffffff',
+                            fontSize: 16,
+                            starterPrompts: [
+                                'What can you help me with?',
+                                'Tell me about your features',
+                                'How do I get started?'
+                            ],
+                            starterPromptFontSize: 15,
+                            clearChatOnReload: false,
+                            sourceDocsTitle: 'Sources:',
+                            renderHTML: true,
+                            botMessage: {
+                                backgroundColor: '#f7f8ff',
+                                textColor: '#303235',
+                                showAvatar: true,
+                                avatarSrc: 'https://raw.githubusercontent.com/zahidkhawaja/langchain-chat-nextjs/main/public/parroticon.png',
+                            },
+                            userMessage: {
+                                backgroundColor: '#3B81F6',
+                                textColor: '#ffffff',
+                                showAvatar: true,
+                                avatarSrc: 'https://raw.githubusercontent.com/zahidkhawaja/langchain-chat-nextjs/main/public/usericon.png',
+                            },
+                            textInput: {
+                                placeholder: 'Type your question here...',
+                                backgroundColor: '#ffffff',
+                                textColor: '#303235',
+                                sendButtonColor: '#3B81F6',
+                                maxChars: 500,
+                                maxCharsWarningMessage: 'You exceeded the characters limit. Please input less than 500 characters.',
+                                autoFocus: true,
+                                sendMessageSound: true,
+                                receiveMessageSound: true,
+                            },
+                            feedback: {
+                                color: '#303235',
+                            },
+                            dateTimeToggle: {
+                                date: true,
+                                time: true,
+                            },
+                            footer: {
+                                text: 'Powered By',
+                                company: 'Afaqy',
+                                companyLink: 'https://afaqy.com',
+                            },
+                            autoMessage: {
+                                enabled: false,
+                                message: 'Auto message disabled for full page mode'
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to initialize chatbot:', error);
+                alert(`Failed to initialize chat: ${error.message}`);
+            }
+        }
+
+        // Initialize chatbot after page load
+        initializeChatbot();
+    </script>
+</body>
+
+</html>

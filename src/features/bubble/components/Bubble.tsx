@@ -135,6 +135,7 @@ export const Bubble = (props: BubbleProps) => {
               titleAvatarSrc={bubbleProps.theme?.chatWindow?.titleAvatarSrc}
               titleTextColor={bubbleProps.theme?.chatWindow?.titleTextColor}
               titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor}
+              showWelcomeMessage={bubbleProps.theme?.chatWindow?.showWelcomeMessage}
               welcomeMessage={bubbleProps.theme?.chatWindow?.welcomeMessage}
               errorMessage={bubbleProps.theme?.chatWindow?.errorMessage}
               poweredByTextColor={bubbleProps.theme?.chatWindow?.poweredByTextColor}

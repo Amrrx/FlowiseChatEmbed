@@ -90,6 +90,7 @@ export type BotProps = {
     onRequest?: (request: RequestInit) => Promise<void>;
     chatflowConfig?: Record<string, unknown>;
     backgroundColor?: string;
+    showWelcomeMessage?: boolean;
     welcomeMessage?: string;
     errorMessage?: string;
     botMessage?: BotMessageTheme;
