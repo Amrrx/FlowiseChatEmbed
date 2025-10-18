@@ -63,6 +63,7 @@ export type ChatWindowTheme = {
   titleAvatarSrc?: string;
   titleTextColor?: string;
   titleBackgroundColor?: string;
+  showWelcomeMessage?: boolean;
   welcomeMessage?: string;
   errorMessage?: string;
   backgroundColor?: string;

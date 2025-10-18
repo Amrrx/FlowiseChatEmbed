@@ -1,0 +1,226 @@
+<!--
+  Embedded Chat Mode Test
+
+  This file demonstrates embedding the full chat interface within a specific
+  container on a page alongside other content.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowise Embedded Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            background-color: #3B81F6;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .content-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .content-section h2 {
+            color: #3B81F6;
+            margin-bottom: 15px;
+        }
+
+        .content-section p {
+            line-height: 1.6;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .chat-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        #chat-widget {
+            width: 100%;
+            height: 600px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            #chat-widget {
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Embedded Chat Widget Example</h1>
+        <p>Chat widget embedded within page content</p>
+    </div>
+
+    <div class="container">
+        <div class="content-section">
+            <h2>About This Demo</h2>
+            <p>
+                This page demonstrates how to embed the Flowise chat widget within a specific container
+                on your webpage, alongside other content.
+            </p>
+            <p>
+                The chat widget is initialized using <code>Chatbot.initFull()</code> and targeted to
+                a specific HTML element using the <code>id</code> parameter.
+            </p>
+
+            <h2>Features</h2>
+            <ul style="padding-left: 20px; color: #666;">
+                <li>Embedded within page layout</li>
+                <li>Custom container sizing</li>
+                <li>Responsive design</li>
+                <li>Configurable welcome message</li>
+                <li>Starter prompts enabled</li>
+                <li>Auto-message on load</li>
+            </ul>
+
+            <h2>Use Cases</h2>
+            <p>
+                This mode is ideal for:
+            </p>
+            <ul style="padding-left: 20px; color: #666;">
+                <li>Support pages</li>
+                <li>Help centers</li>
+                <li>Product documentation</li>
+                <li>Customer service portals</li>
+            </ul>
+        </div>
+
+        <div class="chat-section">
+            <flowise-fullchatbot id="chat-widget"></flowise-fullchatbot>
+        </div>
+    </div>
+
+    <script type="module">
+        import Chatbot from './web.js'
+
+        async function initializeChatbot() {
+            try {
+                // Initialize embedded chatbot in specific container
+                Chatbot.initFull({
+                    chatflowid: "a4bb36ce-c799-4e28-b36a-bbb2cbc9c8fc",
+                    apiHost: "http://localhost:3000",
+                    id: 'chat-widget', // Target the specific container
+                    chatflowConfig: {
+                        sessionId: `session_${Date.now()}`,
+                        vars: {
+                            userId: "Embedded User",
+                            userToken: "A User Token",
+                            context_id: "Embedded Context",
+                            metadata: {
+                                page: 'embedded-demo',
+                                mode: 'container'
+                            }
+                        }
+                    },
+                    theme: {
+                        chatWindow: {
+                            showTitle: true,
+                            showAgentMessages: true,
+                            title: 'Help Assistant',
+                            titleBackgroundColor: '#3B81F6',
+                            titleTextColor: '#ffffff',
+                            showWelcomeMessage: false,
+                            welcomeMessage: 'Welcome to our embedded chat! How can we help you today?',
+                            errorMessage: 'Sorry, something went wrong. Please try again.',
+                            backgroundColor: '#ffffff',
+                            height: 600, // Match container height
+                            fontSize: 15,
+                            starterPrompts: [
+                                'What is this chat widget?',
+                                'How do I integrate this?',
+                                'Show me examples'
+                            ],
+                            starterPromptFontSize: 14,
+                            clearChatOnReload: false,
+                            sourceDocsTitle: 'Sources:',
+                            renderHTML: true,
+                            botMessage: {
+                                backgroundColor: '#f7f8ff',
+                                textColor: '#303235',
+                                showAvatar: true,
+                                avatarSrc: 'https://raw.githubusercontent.com/zahidkhawaja/langchain-chat-nextjs/main/public/parroticon.png',
+                            },
+                            userMessage: {
+                                backgroundColor: '#3B81F6',
+                                textColor: '#ffffff',
+                                showAvatar: false,
+                            },
+                            textInput: {
+                                placeholder: 'Ask a question...',
+                                backgroundColor: '#ffffff',
+                                textColor: '#303235',
+                                sendButtonColor: '#3B81F6',
+                                maxChars: 500,
+                                autoFocus: false,
+                                sendMessageSound: false,
+                                receiveMessageSound: true,
+                            },
+                            feedback: {
+                                color: '#303235',
+                            },
+                            dateTimeToggle: {
+                                date: false,
+                                time: false,
+                            },
+                            footer: {
+                                text: 'Powered By',
+                                company: 'Afaqy',
+                                companyLink: 'https://afaqy.com',
+                            },
+                            autoMessage: {
+                                enabled: true,
+                                message: 'I noticed you are on the {currentPage} page. How can I assist you with this embedded chat widget?'
+                            }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to initialize chatbot:', error);
+                alert(`Failed to initialize chat: ${error.message}`);
+            }
+        }
+
+        // Initialize chatbot after page load
+        initializeChatbot();
+    </script>
+</body>
+
+</html>
