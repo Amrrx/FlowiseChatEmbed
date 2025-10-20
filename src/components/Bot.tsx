@@ -1510,7 +1510,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       const autoMessageKey = `autoMessageSent_${props.chatflowid}_${chatId()}`;
       const hasBeenSent = sessionStorage.getItem(autoMessageKey);
 
-      return !hasBeenSent && !loading() && messages().length > 0 && chatId();
+      return !hasBeenSent && !loading() && chatId();
     };
 
     if (shouldSendAutoMessage()) {
