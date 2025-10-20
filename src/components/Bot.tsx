@@ -38,7 +38,6 @@ import { removeLocalStorageChatHistory, getLocalStorageChatflow, setLocalStorage
 import { cloneDeep } from 'lodash';
 import { FollowUpPromptBubble } from '@/components/bubbles/FollowUpPromptBubble';
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
-import { Watermark } from '@/components/Watermark';
 
 export type FileEvent<T = EventTarget> = {
   target: T;
@@ -274,7 +273,7 @@ const defaultWelcomeMessage = 'Hi there! How can I help?';
 
 const defaultBackgroundColor = '#ffffff';
 const defaultTextColor = '#303235';
-const defaultTitleBackgroundColor = '#3B81F6';
+const defaultTitleBackgroundColor = '#00B8D9';
 
 /* FeedbackDialog component - for collecting user feedback */
 const FeedbackDialog = (props: {
@@ -2508,12 +2507,13 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
           {props.showTitle ? (
             <div
-              class="flex flex-row items-center w-full h-[50px] absolute top-0 left-0 z-10"
+              class="flex flex-row items-center w-full h-[56px] absolute top-0 left-0 z-10"
               style={{
                 background: props.titleBackgroundColor || props.bubbleBackgroundColor || defaultTitleBackgroundColor,
                 color: props.titleTextColor || props.bubbleTextColor || defaultBackgroundColor,
-                'border-top-left-radius': props.isFullPage ? '0px' : '6px',
-                'border-top-right-radius': props.isFullPage ? '0px' : '6px',
+                'border-top-left-radius': props.isFullPage ? '0px' : '20px',
+                'border-top-right-radius': props.isFullPage ? '0px' : '20px',
+                'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               }}
             >
               <Show when={props.titleAvatarSrc}>
@@ -2523,7 +2523,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 </>
               </Show>
               <Show when={props.title}>
-                <span class="px-3 whitespace-pre-wrap font-semibold max-w-full">{props.title}</span>
+                <span class="px-3 whitespace-pre-wrap font-semibold max-w-full" style={{ 'font-size': '16px' }}>
+                  {props.title}
+                </span>
               </Show>
               <div style={{ flex: 1 }} />
               <DeleteButton
@@ -2542,7 +2544,6 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               ref={chatContainer}
               class="overflow-y-scroll flex flex-col flex-grow min-w-full w-full px-3 pt-[70px] relative scrollable-container chatbot-chat-view scroll-smooth"
             >
-              <Watermark />
               <For each={[...messages()]}>
                 {(message, index) => {
                   return (

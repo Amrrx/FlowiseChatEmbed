@@ -3,7 +3,7 @@ import { Bot, BotProps } from '@/components/Bot';
 import { BubbleParams } from '@/features/bubble/types';
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 
-const defaultButtonColor = '#3B81F6';
+const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
 
 export type FullProps = BotProps & BubbleParams;
@@ -56,7 +56,7 @@ export const Full = (props: FullProps, { element }: { element: HTMLElement }) =>
             height: props.theme?.chatWindow?.height ? `${props.theme?.chatWindow?.height.toString()}px` : '100dvh',
             width: props.theme?.chatWindow?.width ? `${props.theme?.chatWindow?.width.toString()}px` : '100%',
             margin: '0px',
-            overflow: 'hidden', // Ensure no extra scrolling due to content overflow
+            overflow: 'hidden',
           }}
         >
           <Bot

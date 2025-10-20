@@ -19,7 +19,7 @@ type Props = {
 
 const defaultBackgroundColor = '#3B81F6';
 const defaultTextColor = '#ffffff';
-const defaultFontSize = 16;
+const defaultFontSize = 13;
 
 export const GuestBubble = (props: Props) => {
   Marked.setOptions({ isNoP: true, sanitize: props.renderHTML !== undefined ? !props.renderHTML : true });
@@ -87,12 +87,15 @@ export const GuestBubble = (props: Props) => {
   return (
     <div class="flex justify-end mb-2 items-end guest-container" style={{ 'margin-left': '50px' }}>
       <div
-        class="max-w-full flex flex-col justify-center items-start chatbot-guest-bubble px-4 py-2 gap-2 mr-2"
+        class="max-w-full flex flex-col justify-center items-start chatbot-guest-bubble gap-2 mr-2 transition-all duration-200"
         data-testid="guest-bubble"
         style={{
           'background-color': props.backgroundColor ?? defaultBackgroundColor,
           color: props.textColor ?? defaultTextColor,
-          'border-radius': '6px',
+          'border-radius': '18px',
+          'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          padding: '12px 16px',
+          'box-shadow': '0 2px 8px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05)',
         }}
       >
         {props.message.fileUploads && props.message.fileUploads.length > 0 && (
@@ -108,7 +111,10 @@ export const GuestBubble = (props: Props) => {
           <span
             ref={setUserMessageRef}
             class="mr-2 whitespace-pre-wrap"
-            style={{ 'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px` }}
+            style={{
+              'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
+              'line-height': '1.5',
+            }}
           />
         )}
       </div>

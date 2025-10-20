@@ -13,3 +13,5 @@ export * from './AttachmentIcon';
 export * from './SparklesIcon';
 export * from './VolumeIcon';
 export * from './SquareStopIcon';
+export * from './EmojiIcon';
+export * from './CalendarIcon';

@@ -6,7 +6,7 @@ import { Bot, BotProps } from '../../../components/Bot';
 import Tooltip from './Tooltip';
 import { getBubbleButtonSize } from '@/utils';
 
-const defaultButtonColor = '#3B81F6';
+const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
 
 export type BubbleProps = BotProps & BubbleParams;
@@ -89,18 +89,19 @@ export const Bubble = (props: BubbleProps) => {
           transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
           'transform-origin': 'bottom right',
           transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
-          'box-shadow': 'rgb(0 0 0 / 16%) 0px 5px 40px',
+          'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
           'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
           'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
           'background-size': 'cover',
           'background-position': 'center',
           'background-repeat': 'no-repeat',
           'z-index': 42424242,
+          'border-radius': '20px',
           bottom: `${Math.min(buttonPosition().bottom + buttonSize + 10, window.innerHeight - chatWindowBottom)}px`,
           right: `${Math.max(0, Math.min(buttonPosition().right, window.innerWidth - (bubbleProps.theme?.chatWindow?.width ?? 410) - 10))}px`,
         }}
         class={
-          `fixed sm:right-5 rounded-lg w-full sm:w-[400px] max-h-[704px]` +
+          `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` +
           (isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none') +
           ` bottom-${chatWindowBottom}px`
         }

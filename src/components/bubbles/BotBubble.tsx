@@ -41,10 +41,10 @@ type Props = {
   handleTTSStop?: (messageId: string) => void;
 };
 
-const defaultBackgroundColor = '#f7f8ff';
-const defaultTextColor = '#303235';
-const defaultFontSize = 16;
-const defaultFeedbackColor = '#3B81F6';
+const defaultBackgroundColor = '#ECECEC';
+const defaultTextColor = '#555555';
+const defaultFontSize = 13;
+const defaultFeedbackColor = '#00B8D9';
 
 export const BotBubble = (props: Props) => {
   let botDetailsEl: HTMLDetailsElement | undefined;
@@ -475,32 +475,21 @@ export const BotBubble = (props: Props) => {
             </div>
           )}
           {props.message.message && (
-            <div class="relative ml-2 max-w-full">
-              {/* Background with modern effects */}
-              <div
-                class="absolute inset-0 rounded-lg"
-                style={{
-                  background: `linear-gradient(135deg, ${props.backgroundColor ?? defaultBackgroundColor}f5 0%, ${
-                    props.backgroundColor ?? defaultBackgroundColor
-                  }e8 50%, ${props.backgroundColor ?? defaultBackgroundColor}f5 100%)`,
-                  'box-shadow': '0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                }}
-              />
-              {/* Content */}
+            <div class="ml-2 max-w-full">
               <span
                 ref={setBotMessageRef}
-                class="relative px-4 py-3 chatbot-host-bubble prose block"
+                class="chatbot-host-bubble prose block transition-all duration-200"
                 data-testid="host-bubble"
                 style={{
-                  'background-color': 'transparent',
+                  'background-color': props.backgroundColor ?? defaultBackgroundColor,
                   color: props.textColor ?? defaultTextColor,
-                  'border-radius': '8px',
+                  'border-radius': '18px',
                   'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
-                  'line-height': '1.6',
-                  'backdrop-filter': 'blur(8px)',
-                  position: 'relative',
-                  'z-index': '1',
+                  'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                  'line-height': '1.5',
+                  'padding': '12px 16px',
+                  display: 'block',
+                  'box-shadow': '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
                 }}
               />
             </div>
@@ -590,7 +579,8 @@ export const BotBubble = (props: Props) => {
           </>
         )}
       </div>
-      <div>
+      {/* Feedback section - Hidden for minimal design */}
+      {/* <div>
         <div
           class={`flex items-center px-3 pb-3 pt-2 ${props.showAvatar ? 'ml-10' : ''}`}
           style={{
@@ -679,7 +669,7 @@ export const BotBubble = (props: Props) => {
             textColor={props.textColor}
           />
         </Show>
-      </div>
+      </div> */}
     </div>
   );
 };

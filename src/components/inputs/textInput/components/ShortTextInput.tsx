@@ -45,7 +45,9 @@ export const ShortTextInput = (props: ShortTextInputProps) => {
       class="focus:outline-none bg-transparent px-4 py-4 flex-1 w-full h-full min-h-[56px] max-h-[128px] text-input disabled:opacity-50 disabled:cursor-not-allowed disabled:brightness-100 "
       disabled={props.disabled}
       style={{
-        'font-size': props.fontSize ? `${props.fontSize}px` : '16px',
+        'font-size': props.fontSize ? `${props.fontSize}px` : '13px',
+        'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'line-height': '1.5',
         resize: 'none',
         height: `${props.value !== '' ? height() : DEFAULT_HEIGHT}px`,
       }}

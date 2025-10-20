@@ -2,103 +2,72 @@ export const Watermark = () => {
   return (
     <div class="absolute inset-0 pointer-events-none flex items-center justify-center z-0">
       {/* Background glow effect */}
-      <div class="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-cyan-500/5 blur-3xl" />
+      <div class="absolute inset-0 bg-gradient-to-br from-blue-500/3 via-purple-500/3 to-cyan-500/3 blur-3xl" />
 
-      {/* Main watermark container */}
+      {/* Afaqy Logo Watermark with effects */}
       <div class="relative flex items-center justify-center">
-        <svg width="280" height="80" viewBox="0 0 280 80" class="overflow-visible">
-          {/* SVG Filters for glow effect */}
-          <defs>
-            <filter id="watermark-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-              <feMerge>
-                <feMergeNode in="coloredBlur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
+        {/* Glow layer behind logo */}
+        <div
+          class="absolute inset-0 blur-2xl"
+          style={{
+            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15), transparent 70%)',
+            animation: 'glowPulse 6s ease-in-out infinite',
+          }}
+        />
 
-            {/* Gradient for laser effect */}
-            <linearGradient id="laserGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" style={{ 'stop-color': '#3b82f6', 'stop-opacity': '0.8' }} />
-              <stop offset="33%" style={{ 'stop-color': '#8b5cf6', 'stop-opacity': '1' }} />
-              <stop offset="66%" style={{ 'stop-color': '#06b6d4', 'stop-opacity': '1' }} />
-              <stop offset="100%" style={{ 'stop-color': '#3b82f6', 'stop-opacity': '0.8' }} />
-            </linearGradient>
+        {/* Main logo */}
+        <img
+          src="afaqy-logo.svg"
+          alt="Afaqy"
+          class="w-24 h-auto relative z-10"
+          style={{
+            opacity: '0.12',
+            filter: 'drop-shadow(0 0 20px rgba(59, 130, 246, 0.3))',
+            animation: 'logoFloat 8s ease-in-out infinite, logoFade 4s ease-in-out infinite',
+          }}
+        />
 
-            {/* Animation pattern */}
-            <animate id="laserAnimation" begin="0s" dur="15s" repeatCount="indefinite" />
-          </defs>
-
-          {/* Animated text with laser drawing effect */}
-          <text
-            x="140"
-            y="45"
-            text-anchor="middle"
-            font-family="Arial, sans-serif"
-            font-size="22"
-            font-weight="bold"
-            fill="none"
-            stroke="url(#laserGradient)"
-            stroke-width="2"
-            opacity="0.15"
-            filter="url(#watermark-glow)"
-            style={{
-              'stroke-dasharray': '500',
-              'stroke-dashoffset': '500',
-              animation: 'laserDraw 15s ease-in-out infinite',
-            }}
-          >
-            AFAQY AI
-          </text>
-
-          {/* Additional glow layer */}
-          <text
-            x="140"
-            y="45"
-            text-anchor="middle"
-            font-family="Arial, sans-serif"
-            font-size="22"
-            font-weight="bold"
-            fill="url(#laserGradient)"
-            opacity="0.08"
-            style={{
-              animation: 'pulse 4s ease-in-out infinite 2s',
-            }}
-          >
-            AFAQY AI
-          </text>
-        </svg>
+        {/* Subtle overlay glow */}
+        <img
+          src="afaqy-logo.svg"
+          alt=""
+          class="w-24 h-auto absolute top-0 left-0 z-0"
+          style={{
+            opacity: '0.05',
+            filter: 'blur(8px) brightness(1.5)',
+            animation: 'logoFloat 8s ease-in-out infinite reverse',
+          }}
+        />
       </div>
 
       {/* CSS Animation Styles */}
       <style>{`
-        @keyframes laserDraw {
-          0% {
-            stroke-dashoffset: 500;
-            opacity: 0.05;
-          }
-          15% {
-            opacity: 0.15;
+        @keyframes logoFloat {
+          0%, 100% {
+            transform: translateY(0px) scale(1);
           }
           50% {
-            stroke-dashoffset: 0;
-            opacity: 0.15;
-          }
-          85% {
-            opacity: 0.15;
-          }
-          100% {
-            stroke-dashoffset: -500;
-            opacity: 0.05;
+            transform: translateY(-10px) scale(1.02);
           }
         }
-        
-        @keyframes pulse {
+
+        @keyframes logoFade {
           0%, 100% {
-            opacity: 0.03;
+            opacity: 0.08;
           }
           50% {
-            opacity: 0.12;
+            opacity: 0.15;
+          }
+        }
+
+        @keyframes glowPulse {
+          0%, 100% {
+            opacity: 0.3;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.6;
+            transform: scale(1.1);
           }
         }
       `}</style>
