@@ -487,7 +487,7 @@ export const BotBubble = (props: Props) => {
                   'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
                   'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                   'line-height': '1.5',
-                  'padding': '12px 16px',
+                  padding: '12px 16px',
                   display: 'block',
                   'box-shadow': '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
                 }}
