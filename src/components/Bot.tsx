@@ -1507,10 +1507,18 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         return false;
       }
 
+      if (!chatId()) {
+        return false;
+      }
+
+      // Track isChatFlowAvailableToStream to ensure effect runs after initialization
+      // This is accessed to create a reactive dependency
+      isChatFlowAvailableToStream();
+
       const autoMessageKey = `autoMessageSent_${props.chatflowid}_${chatId()}`;
       const hasBeenSent = sessionStorage.getItem(autoMessageKey);
 
-      return !hasBeenSent && !loading() && chatId();
+      return !hasBeenSent && !loading();
     };
 
     if (shouldSendAutoMessage()) {
