@@ -344,11 +344,13 @@ const LoaderOverlay = (props: { themeColor?: string; isVisible: boolean }) => {
 
   const hexToRgb = (hex: string) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? {
-      r: parseInt(result[1], 16),
-      g: parseInt(result[2], 16),
-      b: parseInt(result[3], 16)
-    } : { r: 0, g: 184, b: 217 };
+    return result
+      ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16),
+        }
+      : { r: 0, g: 184, b: 217 };
   };
 
   const rgb = hexToRgb(themeColor);
@@ -505,19 +507,23 @@ const LoaderOverlay = (props: { themeColor?: string; isVisible: boolean }) => {
 
         <div class="loader-container">
           <div class="flex gap-3">
-            <div class="pulse-dot-enhanced"></div>
-            <div class="pulse-dot-enhanced"></div>
-            <div class="pulse-dot-enhanced"></div>
+            <div class="pulse-dot-enhanced" />
+            <div class="pulse-dot-enhanced" />
+            <div class="pulse-dot-enhanced" />
           </div>
         </div>
 
-        <div class="loader-text">
-          {randomText}...
-        </div>
+        <div class="loader-text">{randomText}...</div>
 
         <svg class="loader-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 123.33 135.19">
-          <path d="M49.31 14.98c-7.3 7.83-12.04 17.26-16.68 26.74-4.61 9.43-8.71 19.07-11.91 29.08-.05.15-.13.28-.2.42l-.01-44.84c0-6.3 5.11-11.41 11.41-11.41l17.39.01zm-8.14 59.89c22.34-.36 44.73 7.67 51.56 42.89H32.34c2.32-14.37 3.49-29.04 8.83-42.89zm38.88-5.93c-9.98-8.26-21.6-10.37-33.94-10.44 3.7-10.03 8.7-19.33 14.79-28.16 8.27 11.9 14.25 24.86 19.15 38.6z" fill="currentColor"/>
-          <path d="M123.33 26.38v82.81c0 4.72-3.83 8.55-8.55 8.55h-4.49c2.3-5.34 1.13-10.79.25-16.21-1.76-10.85-5.14-21.26-8.8-31.57-3.37-9.5-7.38-18.75-11.86-27.8-4.36-8.81-8.82-17.54-14.95-25.3-.5-.64-1.04-1.26-1.55-1.88h38.55c6.29 0 11.4 5.1 11.4 11.4z" fill="currentColor"/>
+          <path
+            d="M49.31 14.98c-7.3 7.83-12.04 17.26-16.68 26.74-4.61 9.43-8.71 19.07-11.91 29.08-.05.15-.13.28-.2.42l-.01-44.84c0-6.3 5.11-11.41 11.41-11.41l17.39.01zm-8.14 59.89c22.34-.36 44.73 7.67 51.56 42.89H32.34c2.32-14.37 3.49-29.04 8.83-42.89zm38.88-5.93c-9.98-8.26-21.6-10.37-33.94-10.44 3.7-10.03 8.7-19.33 14.79-28.16 8.27 11.9 14.25 24.86 19.15 38.6z"
+            fill="currentColor"
+          />
+          <path
+            d="M123.33 26.38v82.81c0 4.72-3.83 8.55-8.55 8.55h-4.49c2.3-5.34 1.13-10.79.25-16.21-1.76-10.85-5.14-21.26-8.8-31.57-3.37-9.5-7.38-18.75-11.86-27.8-4.36-8.81-8.82-17.54-14.95-25.3-.5-.64-1.04-1.26-1.55-1.88h38.55c6.29 0 11.4 5.1 11.4 11.4z"
+            fill="currentColor"
+          />
         </svg>
       </div>
     </div>
