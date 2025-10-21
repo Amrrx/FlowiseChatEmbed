@@ -319,6 +319,211 @@ const FeedbackDialog = (props: {
   );
 };
 
+/* LoaderOverlay component - for showing loading state during auto message */
+const LoaderOverlay = (props: { themeColor?: string; isVisible: boolean }) => {
+  const loadingTexts = [
+    'Synthesizing',
+    'Collating',
+    'Marshaling',
+    'Distilling',
+    'Parsing',
+    'Cogitating',
+    'Ruminating',
+    'Calibrating',
+    'Orchestrating',
+    'Formulating',
+    'Concatenating',
+    'Aggregating',
+    'Convening',
+    'Curating',
+    'Extrapolating',
+  ];
+
+  const randomText = loadingTexts[Math.floor(Math.random() * loadingTexts.length)];
+  const themeColor = props.themeColor || '#00B8D9';
+
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 184, b: 217 };
+  };
+
+  const rgb = hexToRgb(themeColor);
+  const themeRgb = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+
+  return (
+    <div
+      class={`absolute inset-0 flex items-center justify-center z-50 ${props.isVisible ? 'loader-fade-in' : 'loader-fade-out'}`}
+      style={{
+        background: 'rgba(0, 0, 0, 0.2)',
+        'backdrop-filter': 'blur(2px)',
+        '-webkit-backdrop-filter': 'blur(2px)',
+        'border-radius': '20px',
+        overflow: 'hidden',
+      }}
+    >
+      <div class="flex flex-col items-center gap-5">
+        <style>{`
+          @keyframes loader-fade-in {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+
+          @keyframes loader-fade-out {
+            from {
+              opacity: 1;
+            }
+            to {
+              opacity: 0;
+            }
+          }
+
+          @keyframes pulse-glow {
+            0%, 100% {
+              opacity: 0.5;
+              transform: scale(0.9);
+            }
+            50% {
+              opacity: 1;
+              transform: scale(1.25);
+            }
+          }
+
+          @keyframes gradient-shift {
+            0%, 100% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+          }
+
+          @keyframes text-pulse {
+            0%, 100% {
+              opacity: 0.75;
+              transform: translateY(0);
+            }
+            50% {
+              opacity: 1;
+              transform: translateY(-2px);
+            }
+          }
+
+          @keyframes logo-fade {
+            0%, 100% {
+              opacity: 0.45;
+              transform: translateY(0) scale(1);
+            }
+            50% {
+              opacity: 0.75;
+              transform: translateY(-3px) scale(1.03);
+            }
+          }
+
+          @keyframes container-float {
+            0%, 100% {
+              transform: translateY(0);
+              box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15),
+                          0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+            }
+            50% {
+              transform: translateY(-5px);
+              box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2),
+                          0 0 0 1px rgba(255, 255, 255, 0.2) inset,
+                          0 0 40px rgba(${themeRgb}, 0.1);
+            }
+          }
+
+          .loader-fade-in {
+            animation: loader-fade-in 0.3s ease-out;
+          }
+
+          .loader-fade-out {
+            animation: loader-fade-out 0.4s ease-in forwards;
+          }
+
+          .loader-container {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 20px;
+            padding: 32px 48px;
+            animation: container-float 4s ease-in-out infinite;
+            will-change: transform, box-shadow;
+          }
+
+          .pulse-dot-enhanced {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, ${themeColor}, ${themeColor}dd, ${themeColor}aa);
+            background-size: 200% 200%;
+            animation: pulse-glow 1.6s ease-in-out infinite, gradient-shift 3s ease infinite;
+            box-shadow: 0 0 20px ${themeColor}66,
+                        0 0 40px ${themeColor}33,
+                        0 4px 12px rgba(0, 0, 0, 0.2);
+            will-change: transform, opacity;
+          }
+
+          .pulse-dot-enhanced:nth-child(2) {
+            animation-delay: 0.2s;
+          }
+
+          .pulse-dot-enhanced:nth-child(3) {
+            animation-delay: 0.4s;
+          }
+
+          .loader-text {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
+                         0 0 20px rgba(${themeRgb}, 0.3);
+            animation: text-pulse 2s ease-in-out infinite;
+            will-change: transform, opacity;
+          }
+
+          .loader-logo {
+            width: 52px;
+            height: 52px;
+            opacity: 0.5;
+            filter: brightness(0) invert(1) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2));
+            animation: logo-fade 3s ease-in-out infinite;
+            will-change: transform, opacity;
+          }
+        `}</style>
+
+        <div class="loader-container">
+          <div class="flex gap-3">
+            <div class="pulse-dot-enhanced"></div>
+            <div class="pulse-dot-enhanced"></div>
+            <div class="pulse-dot-enhanced"></div>
+          </div>
+        </div>
+
+        <div class="loader-text">
+          {randomText}...
+        </div>
+
+        <svg class="loader-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 123.33 135.19">
+          <path d="M49.31 14.98c-7.3 7.83-12.04 17.26-16.68 26.74-4.61 9.43-8.71 19.07-11.91 29.08-.05.15-.13.28-.2.42l-.01-44.84c0-6.3 5.11-11.41 11.41-11.41l17.39.01zm-8.14 59.89c22.34-.36 44.73 7.67 51.56 42.89H32.34c2.32-14.37 3.49-29.04 8.83-42.89zm38.88-5.93c-9.98-8.26-21.6-10.37-33.94-10.44 3.7-10.03 8.7-19.33 14.79-28.16 8.27 11.9 14.25 24.86 19.15 38.6z" fill="currentColor"/>
+          <path d="M123.33 26.38v82.81c0 4.72-3.83 8.55-8.55 8.55h-4.49c2.3-5.34 1.13-10.79.25-16.21-1.76-10.85-5.14-21.26-8.8-31.57-3.37-9.5-7.38-18.75-11.86-27.8-4.36-8.81-8.82-17.54-14.95-25.3-.5-.64-1.04-1.26-1.55-1.88h38.55c6.29 0 11.4 5.1 11.4 11.4z" fill="currentColor"/>
+        </svg>
+      </div>
+    </div>
+  );
+};
+
 /* FormInputView component - for displaying the form input */
 const FormInputView = (props: {
   title: string;
@@ -503,6 +708,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [isChatFlowAvailableToStream, setIsChatFlowAvailableToStream] = createSignal(false);
   const [chatId, setChatId] = createSignal('');
   const [isMessageStopping, setIsMessageStopping] = createSignal(false);
+  const [isWaitingForAutoMessage, setIsWaitingForAutoMessage] = createSignal(false);
+  const [loaderVisible, setLoaderVisible] = createSignal(true);
+  let loaderShowTime = 0;
   const [starterPrompts, setStarterPrompts] = createSignal<string[]>([], { equals: false });
   const [chatFeedbackStatus, setChatFeedbackStatus] = createSignal<boolean>(false);
   const [fullFileUpload, setFullFileUpload] = createSignal<boolean>(false);
@@ -948,7 +1156,23 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     });
   };
 
+  const hideAutoMessageLoader = () => {
+    const MIN_DISPLAY_TIME = 500;
+    const elapsed = Date.now() - loaderShowTime;
+    const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsed);
+
+    setTimeout(() => {
+      setLoaderVisible(false);
+      setTimeout(() => {
+        setIsWaitingForAutoMessage(false);
+      }, 400);
+    }, remainingTime);
+  };
+
   const closeResponse = () => {
+    if (isWaitingForAutoMessage()) {
+      hideAutoMessageLoader();
+    }
     setLoading(false);
     setUserInput('');
     setUploadedFiles([]);
@@ -1526,6 +1750,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
       const messageWithVariables = replaceMessageVariables(props.autoMessage!.message!, chatId());
 
+      setIsWaitingForAutoMessage(true);
+      setLoaderVisible(true);
+      loaderShowTime = Date.now();
+
       setTimeout(() => {
         const body: IncomingInput = {
           question: messageWithVariables,
@@ -1574,6 +1802,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 return allMessages;
               });
 
+              if (isWaitingForAutoMessage()) {
+                hideAutoMessageLoader();
+              }
               setLoading(false);
               scrollToBottom();
             }
@@ -2504,6 +2735,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               </For>
             </div>
           )}
+
+          <Show when={isWaitingForAutoMessage()}>
+            <LoaderOverlay themeColor={props.bubbleBackgroundColor} isVisible={loaderVisible()} />
+          </Show>
 
           {props.showTitle ? (
             <div
