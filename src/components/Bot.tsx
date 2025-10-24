@@ -38,6 +38,8 @@ import { removeLocalStorageChatHistory, getLocalStorageChatflow, setLocalStorage
 import { cloneDeep } from 'lodash';
 import { FollowUpPromptBubble } from '@/components/bubbles/FollowUpPromptBubble';
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
+import { useChatbotBridge } from '@/bridge/useChatbotBridge';
+import { buildPromptFromEvent } from '@/bridge/promptTemplates';
 
 export type FileEvent<T = EventTarget> = {
   target: T;
@@ -775,6 +777,15 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   // TTS auto-scroll prevention refs
   let isTTSActionRef = false;
   let ttsTimeoutRef: ReturnType<typeof setTimeout> | null = null;
+
+  // Angular Bridge integration - receive events and send to LLM
+  useChatbotBridge((event) => {
+    // Build prompt from event using configured template
+    const prompt = buildPromptFromEvent(event);
+
+    // Send to LLM
+    handleSubmit(prompt);
+  });
 
   createMemo(() => {
     const customerId = (props.chatflowConfig?.vars as any)?.customerId;
