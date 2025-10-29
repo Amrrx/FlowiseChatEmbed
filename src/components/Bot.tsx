@@ -876,27 +876,35 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
   let hasSoundPlayed = false;
 
+  const extractAndDispatchCommands = () => {
+    setMessages((prevMessages) => {
+      const allMessages = [...cloneDeep(prevMessages)];
+      const lastMsg = allMessages[allMessages.length - 1];
+
+      if (lastMsg && lastMsg.type === 'apiMessage') {
+        const { displayText, commands } = extractCommands(lastMsg.message);
+        lastMsg.message = displayText;
+
+        commands.forEach((command) => {
+          console.log('[Bridge] Sending command to Angular:', command);
+          window.dispatchEvent(new CustomEvent('chatbot:command', { detail: command }));
+        });
+
+        addChatMessage(allMessages);
+      }
+      return allMessages;
+    });
+  };
+
   const updateLastMessage = (text: string) => {
     setMessages((prevMessages) => {
       const allMessages = [...cloneDeep(prevMessages)];
       if (allMessages[allMessages.length - 1].type === 'userMessage') return allMessages;
       if (!text) return allMessages;
 
-      // Extract commands from incoming text
-      const { displayText, commands } = extractCommands(text);
-
-      // Update message with clean display text (no command blocks)
-      allMessages[allMessages.length - 1].message += displayText;
+      allMessages[allMessages.length - 1].message += text;
       allMessages[allMessages.length - 1].rating = undefined;
       allMessages[allMessages.length - 1].dateTime = new Date().toISOString();
-
-      // Dispatch commands to Angular
-      if (commands.length > 0) {
-        commands.forEach((command) => {
-          console.log('[Bridge] Sending command to Angular:', command);
-          window.dispatchEvent(new CustomEvent('chatbot:command', { detail: command }));
-        });
-      }
 
       if (!hasSoundPlayed) {
         playReceiveSound();
@@ -1160,6 +1168,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             closeResponse();
             break;
           case 'end':
+            extractAndDispatchCommands();
             setLocalStorageChatflow(chatflowid, chatId);
             closeResponse();
             break;
