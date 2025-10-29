@@ -1,0 +1,1 @@
+{"version":3,"file":"commandExtractor.d.ts","sourceRoot":"","sources":["../../src/bridge/commandExtractor.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,OAAO,KAAK,EAAE,cAAc,EAAE,MAAM,SAAS,CAAC;AAE9C,MAAM,MAAM,gBAAgB,GAAG;IAC7B,WAAW,EAAE,MAAM,CAAC;IACpB,QAAQ,EAAE,cAAc,EAAE,CAAC;CAC5B,CAAC;AAEF;;;;;;;;;;GAUG;AACH,wBAAgB,eAAe,CAAC,IAAI,EAAE,MAAM,GAAG,gBAAgB,CAoB9D"}

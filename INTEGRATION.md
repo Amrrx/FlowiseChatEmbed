@@ -125,10 +125,65 @@ window.dispatchEvent(
 
 ---
 
+## LLM Command Format
+
+The LLM can send commands back to your app by wrapping JSON in `[COMMAND]...[/COMMAND]` markers.
+
+### Example LLM Response
+
+```
+Sure! Let me search for that vehicle for you.
+
+[COMMAND]
+{
+  "type": "QUERY_UNIT",
+  "searchTerm": "ABC-123",
+  "searchType": "plate"
+}
+[/COMMAND]
+
+I've triggered the search for plate ABC-123.
+```
+
+### What Happens
+
+1. LLM generates response with command markers
+2. Chatbot extracts the command JSON
+3. Command blocks are stripped from display (user only sees the text)
+4. Command is dispatched to Angular via `chatbot:command` event
+
+### Configuring the LLM
+
+Add available commands to your Flowise system message or MCP server:
+
+```markdown
+AVAILABLE COMMANDS:
+You can trigger actions by responding with JSON commands wrapped in markers:
+
+[COMMAND]
+{
+  "type": "QUERY_UNIT",
+  "searchTerm": "ABC-123",
+  "searchType": "plate"
+}
+[/COMMAND]
+
+Available commands:
+- QUERY_UNIT: Search for a vehicle/unit
+  - searchTerm (string): The search value
+  - searchType (string): "plate" | "vin" | "id"
+
+Only use commands when the user explicitly requests an action.
+```
+
+---
+
 ## Adding New Event Types
 
 1. Add type to `src/bridge/types.ts`
 2. Add prompt template to `src/bridge/promptTemplates.ts` (for chatbot responses)
-3. Use it in your app
+3. Add to `src/bridge/catalog.json` (for LLM documentation)
+4. Update your MCP server or Flowise system message
+5. Use it in your app
 
 That's it!

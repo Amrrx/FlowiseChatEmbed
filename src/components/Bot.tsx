@@ -40,6 +40,7 @@ import { FollowUpPromptBubble } from '@/components/bubbles/FollowUpPromptBubble'
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
 import { useChatbotBridge } from '@/bridge/useChatbotBridge';
 import { buildPromptFromEvent } from '@/bridge/promptTemplates';
+import { extractCommands } from '@/bridge/commandExtractor';
 
 export type FileEvent<T = EventTarget> = {
   target: T;
@@ -880,9 +881,23 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       const allMessages = [...cloneDeep(prevMessages)];
       if (allMessages[allMessages.length - 1].type === 'userMessage') return allMessages;
       if (!text) return allMessages;
-      allMessages[allMessages.length - 1].message += text;
+
+      // Extract commands from incoming text
+      const { displayText, commands } = extractCommands(text);
+
+      // Update message with clean display text (no command blocks)
+      allMessages[allMessages.length - 1].message += displayText;
       allMessages[allMessages.length - 1].rating = undefined;
       allMessages[allMessages.length - 1].dateTime = new Date().toISOString();
+
+      // Dispatch commands to Angular
+      if (commands.length > 0) {
+        commands.forEach((command) => {
+          console.log('[Bridge] Sending command to Angular:', command);
+          window.dispatchEvent(new CustomEvent('chatbot:command', { detail: command }));
+        });
+      }
+
       if (!hasSoundPlayed) {
         playReceiveSound();
         hasSoundPlayed = true;

@@ -1,0 +1,54 @@
+{
+  "version": "1.0.0",
+  "incomingEvents": [
+    {
+      "type": "UNIT_QUERIED",
+      "description": "User searched for a vehicle/unit in the Angular UI",
+      "parameters": {
+        "searchTerm": {
+          "type": "string",
+          "description": "The search value entered by user"
+        },
+        "searchType": {
+          "type": "string",
+          "enum": ["plate", "vin", "id"],
+          "description": "Type of search performed"
+        }
+      }
+    }
+  ],
+  "availableCommands": [
+    {
+      "type": "QUERY_UNIT",
+      "description": "Trigger a unit/vehicle search in the Angular UI",
+      "when": "User explicitly asks you to search for a specific vehicle",
+      "parameters": {
+        "searchTerm": {
+          "type": "string",
+          "description": "Plate number, VIN, or unit ID",
+          "required": true
+        },
+        "searchType": {
+          "type": "string",
+          "enum": ["plate", "vin", "id"],
+          "description": "Type of identifier",
+          "required": true
+        }
+      },
+      "example": {
+        "type": "QUERY_UNIT",
+        "searchTerm": "ABC-123",
+        "searchType": "plate"
+      }
+    }
+  ],
+  "usage": {
+    "format": "JSON wrapped in [COMMAND]...[/COMMAND] markers",
+    "rules": [
+      "Only send commands when user explicitly requests an action",
+      "Always explain what you are doing before sending a command",
+      "Commands execute automatically - user will see results in UI",
+      "Never invent new command types - only use those listed above"
+    ]
+  }
+}
