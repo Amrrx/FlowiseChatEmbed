@@ -162,13 +162,14 @@ You can trigger actions by responding with JSON commands wrapped in markers:
 
 [COMMAND]
 {
-  "type": "QUERY_UNIT",
-  "searchTerm": "ABC-123",
-  "searchType": "plate"
+"type": "QUERY_UNIT",
+"searchTerm": "ABC-123",
+"searchType": "plate"
 }
 [/COMMAND]
 
 Available commands:
+
 - QUERY_UNIT: Search for a vehicle/unit
   - searchTerm (string): The search value
   - searchType (string): "plate" | "vin" | "id"
