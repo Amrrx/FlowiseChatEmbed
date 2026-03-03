@@ -5,6 +5,9 @@ import { BubbleTheme } from './features/bubble/types';
 type BotProps = {
   chatflowid: string;
   apiHost?: string;
+  protocol?: 'legacy' | 'ag-ui';
+  apiPath?: string;
+  agentId?: string;
   onRequest?: (request: RequestInit) => Promise<void>;
   chatflowConfig?: Record<string, unknown>;
   observersConfig?: observersConfigType;

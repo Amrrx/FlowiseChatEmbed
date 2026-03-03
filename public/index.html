@@ -29,13 +29,17 @@
                 // Initialize chatbot with enhanced header
                 Chatbot.init({
                     chatflowid: "a4bb36ce-c799-4e28-b36a-bbb2cbc9c8fc",
-                    apiHost: "http://localhost:11101",
+                    apiHost: "http://localhost:9099",
+                    protocol: "ag-ui",                  // activate AG-UI mode
+                    apiPath: "/chat",                   // your gateway path
+                    agentId: "avl-agent",              // replaces chatflowid for routing
+
                     chatflowConfig: {
                         sessionId: `session_${Date.now()}`,
                         vars: {
-                            userId: "A User ID",
-                            userToken: "A User Token",
-                            context_id: "A Context ID",
+                            userId: "5e6655bf03ed52e1ab79d301",
+                            userToken: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vYXBpLmFmYXF5LnByby9hdXRoL2xvZ2luIiwiaWF0IjoxNzcxOTk1MDQ5LCJleHAiOjE3NzQ1ODcwNDksIm5iZiI6MTc3MTk5NTA0OSwianRpIjoiYXRna3F0UXI0SmY0TU9YMiIsInN1YiI6IjVlNjY1NWJmMDNlZDUyZTFhYjc5ZDMwMSIsInBydiI6IjI3MGVjZmM3ZWEzZWQ5MzdlYTg0OTM2MmEzYTUwOTEwYzZkOGNlNGYifQ.NM9MFsL89AsYt6SdzsQwDUf8XUgvHfHCZiG5O_WsZpM",
+                            context_id: "5e6655bf03ed52e1ab79d301",
                             metadata: {}
                         }
                     },
@@ -104,8 +108,8 @@
                             errorMessage: 'Sorry, something went wrong. Please try again.',
                             backgroundColor: '#ffffff',
                             backgroundImage: 'enter image path or link', // If set, this will overlap the background color of the chat window.
-                            // height: 700,
-                            // width: 400,
+                            // height: 1000,
+                            width: 600,
                             fontSize: 14,
                             starterPrompts: [''], // It overrides the starter prompts set by the chat flow passed
                             starterPromptFontSize: 15,
@@ -150,7 +154,7 @@
                                 companyLink: 'https://afaqy.com',
                             },
                             autoMessage: {
-                                enabled: true,
+                                enabled: false,
                                 message: 'Hello! I am visiting from {currentPage} with session ID {sessionId}. Current timestamp is {timestamp}.'
                             }
                         }

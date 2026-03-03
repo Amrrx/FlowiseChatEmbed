@@ -1,6 +1,7 @@
 import { FeedbackRatingType } from '@/queries/sendMessageQuery';
 import { BotMessageTheme, FooterTheme, TextInputTheme, UserMessageTheme, FeedbackTheme, DisclaimerPopUpTheme, DateTimeToggleTheme } from '@/features/bubble/types';
 import { FilePreview } from '@/components/inputs/textInput/components/FilePreview';
+import type { CardData, ToolCallData } from '@/agui/types';
 export type FileEvent<T = EventTarget> = {
     target: T;
 };
@@ -27,7 +28,7 @@ type FilePreview = {
     preview: string;
     type: string;
 };
-type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage';
+type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage';
 type ExecutionState = 'INPROGRESS' | 'FINISHED' | 'ERROR' | 'TERMINATED' | 'TIMEOUT' | 'STOPPED';
 export type IAgentReasoning = {
     agentName?: string;
@@ -77,6 +78,8 @@ export type MessageType = {
     id?: string;
     followUpPrompts?: string;
     dateTime?: string;
+    card?: CardData;
+    toolCalls?: ToolCallData[];
 };
 type observerConfigType = (accessor: string | boolean | object | MessageType[]) => void;
 export type observersConfigType = Record<'observeUserInput' | 'observeLoading' | 'observeMessages', observerConfigType>;
@@ -87,6 +90,9 @@ export type AutoMessageConfig = {
 export type BotProps = {
     chatflowid: string;
     apiHost?: string;
+    protocol?: 'legacy' | 'ag-ui';
+    apiPath?: string;
+    agentId?: string;
     onRequest?: (request: RequestInit) => Promise<void>;
     chatflowConfig?: Record<string, unknown>;
     backgroundColor?: string;

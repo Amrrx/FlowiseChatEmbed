@@ -41,6 +41,13 @@ import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event
 import { useChatbotBridge } from '@/bridge/useChatbotBridge';
 import { buildPromptFromEvent } from '@/bridge/promptTemplates';
 import { extractCommands } from '@/bridge/commandExtractor';
+import { parseAGUIEvent, connectStream, disconnectStream } from '@/agui';
+import type { CardData, CardAction, CardInteraction, SelectionOption, ToolCallData } from '@/agui/types';
+import type { StreamEvent } from '@/agui/stream';
+import { EntityCardBubble } from './bubbles/EntityCardBubble';
+import { SelectionCardBubble } from './bubbles/SelectionCardBubble';
+import { ProgressCardBubble } from './bubbles/ProgressCardBubble';
+import { ToolCallBubble } from './bubbles/ToolCallBubble';
 
 export type FileEvent<T = EventTarget> = {
   target: T;
@@ -74,7 +81,7 @@ type FilePreview = {
   type: string;
 };
 
-type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage';
+type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage';
 type ExecutionState = 'INPROGRESS' | 'FINISHED' | 'ERROR' | 'TERMINATED' | 'TIMEOUT' | 'STOPPED';
 
 export type IAgentReasoning = {
@@ -129,6 +136,8 @@ export type MessageType = {
   id?: string;
   followUpPrompts?: string;
   dateTime?: string;
+  card?: CardData;
+  toolCalls?: ToolCallData[];
 };
 
 type IUploads = {
@@ -149,6 +158,9 @@ export type AutoMessageConfig = {
 export type BotProps = {
   chatflowid: string;
   apiHost?: string;
+  protocol?: 'legacy' | 'ag-ui';
+  apiPath?: string;
+  agentId?: string;
   onRequest?: (request: RequestInit) => Promise<void>;
   chatflowConfig?: Record<string, unknown>;
   backgroundColor?: string;
@@ -694,6 +706,12 @@ const replaceMessageVariables = (message: string, sessionId: string): string => 
 export const Bot = (botProps: BotProps & { class?: string }) => {
   // set a default value for showTitle if not set and merge with other props
   const props = mergeProps({ showTitle: true }, botProps);
+
+  const isAGUI = () => props.protocol === 'ag-ui';
+  const endpointId = () => props.agentId ?? props.chatflowid;
+  const endpointPath = () => props.apiPath ?? '/api/v1/prediction';
+  const predictionUrl = () => `${props.apiHost}${endpointPath()}/${endpointId()}`;
+
   let chatContainer: HTMLDivElement | undefined;
   let bottomSpacer: HTMLDivElement | undefined;
   let botContainer: HTMLDivElement | undefined;
@@ -728,6 +746,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [isLeadSaved, setIsLeadSaved] = createSignal(false);
   const [leadEmail, setLeadEmail] = createSignal('');
   const [disclaimerPopupOpen, setDisclaimerPopupOpen] = createSignal(false);
+  const [streamConnected, setStreamConnected] = createSignal(false);
 
   const [openFeedbackDialog, setOpenFeedbackDialog] = createSignal(false);
   const [feedback, setFeedback] = createSignal('');
@@ -786,6 +805,39 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
     // Send to LLM
     handleSubmit(prompt);
+  });
+
+  // Persistent SSE connection for proactive event delivery
+  const handleStreamEvent = (event: StreamEvent) => {
+    switch (event.type) {
+      case 'ack':
+        console.log('[STREAM] Connected:', event);
+        break;
+      case 'notification':
+        console.log('[STREAM] Notification:', event);
+        break;
+      default:
+        console.log('[STREAM] Event:', event);
+    }
+  };
+
+  createEffect(() => {
+    if (!isAGUI()) return;
+
+    const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
+    if (!vars.userId || !props.agentId) return;
+
+    connectStream({
+      apiHost: props.apiHost ?? '',
+      agentId: props.agentId,
+      userId: vars.userId,
+      userToken: vars.userToken ?? '',
+      onEvent: handleStreamEvent,
+      onConnect: () => setStreamConnected(true),
+      onDisconnect: () => setStreamConnected(false),
+    });
+
+    onCleanup(() => disconnectStream());
   });
 
   createMemo(() => {
@@ -909,6 +961,56 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       if (!hasSoundPlayed) {
         playReceiveSound();
         hasSoundPlayed = true;
+      }
+      addChatMessage(allMessages);
+      return allMessages;
+    });
+  };
+
+  const addCardMessage = (card: CardData) => {
+    setMessages((prevMessages) => {
+      const allMessages = [...cloneDeep(prevMessages)];
+      const cardMsg = { message: '', type: 'cardMessage' as messageType, card, dateTime: new Date().toISOString() };
+
+      // Insert card before the current streaming apiMessage so it renders above text
+      const lastIdx = allMessages.length - 1;
+      if (lastIdx >= 0 && allMessages[lastIdx].type === 'apiMessage') {
+        allMessages.splice(lastIdx, 0, cardMsg);
+      } else {
+        allMessages.push(cardMsg);
+      }
+
+      // Remove tool call bubble when an entity card appears (card replaces it visually)
+      if (card.type_id === 'entity') {
+        const tcIdx = allMessages.findIndex((m) => m.type === 'toolCallMessage');
+        if (tcIdx >= 0) allMessages.splice(tcIdx, 1);
+      }
+
+      addChatMessage(allMessages);
+      return allMessages;
+    });
+  };
+
+  const updateProgressCard = (cardId: string, delta: Array<{ op: string; path: string; value: any }>) => {
+    setMessages((prevMessages) => {
+      const allMessages = [...cloneDeep(prevMessages)];
+      for (const msg of allMessages) {
+        if (msg.card?.card_id === cardId && msg.card?.type_id === 'progress') {
+          for (const patch of delta) {
+            if (patch.op === 'replace' && patch.path) {
+              const match = patch.path.match(/^\/steps\/(\d+)\/(.+)$/);
+              if (match) {
+                const idx = parseInt(match[1], 10);
+                const field = match[2];
+                const steps = msg.card.data.steps as any[];
+                if (steps && steps[idx]) {
+                  steps[idx][field] = patch.value;
+                }
+              }
+            }
+          }
+          break;
+        }
       }
       addChatMessage(allMessages);
       return allMessages;
@@ -1098,7 +1200,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const chatId = params.chatId;
     const input = params.question;
     params.streaming = true;
-    fetchEventSource(`${props.apiHost}/api/v1/prediction/${chatflowid}`, {
+    fetchEventSource(predictionUrl(), {
       openWhenHidden: true,
       method: 'POST',
       body: JSON.stringify(params),
@@ -1191,6 +1293,139 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       },
       onerror(err) {
         console.error('EventSource Error: ', err);
+        closeResponse();
+        throw err;
+      },
+    });
+  };
+
+  const fetchResponseFromAGUIStream = async (chatflowid: string, params: any) => {
+    const chatIdVal = params.chatId;
+
+    let lastProgressCardId: string | null = null;
+    const toolCallMessageIndex = new Map<string, number>();
+
+    const aguiHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Protocol': 'ag-ui',
+    };
+    if (props.agentId) aguiHeaders['X-Agent-ID'] = props.agentId;
+    const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
+    if (vars.userId) aguiHeaders['X-User-ID'] = vars.userId;
+    if (vars.userToken) aguiHeaders['X-User-Token'] = vars.userToken;
+
+    fetchEventSource(predictionUrl(), {
+      openWhenHidden: true,
+      method: 'POST',
+      body: JSON.stringify(params),
+      headers: aguiHeaders,
+      async onopen(response) {
+        if (response.ok) return;
+        const errMessage = (await response.text()) ?? 'Request failed';
+        handleError(errMessage, response.status === 429);
+        throw new Error(errMessage);
+      },
+      onmessage(ev) {
+        const action = parseAGUIEvent(ev.data);
+        if (!action) return;
+
+        switch (action.type) {
+          case 'run_started':
+            break;
+
+          case 'text_start':
+            setMessages((prev) => [...prev, { message: '', type: 'apiMessage' }]);
+            break;
+
+          case 'text_delta':
+            updateLastMessage(action.delta);
+            break;
+
+          case 'text_end':
+            break;
+
+          case 'card':
+            addCardMessage(action.card);
+            if (action.card.type_id === 'progress') {
+              lastProgressCardId = action.card.card_id;
+            }
+            break;
+
+          case 'state_delta':
+            if (lastProgressCardId) {
+              updateProgressCard(lastProgressCardId, action.delta);
+            }
+            break;
+
+          case 'tool_call_start': {
+            const tcData: ToolCallData = { toolCallId: action.toolCallId, toolName: action.toolName, args: '', status: 'calling' };
+            setMessages((prev) => {
+              const all = [...cloneDeep(prev)];
+              const existingIdx = all.findIndex((m) => m.type === 'toolCallMessage');
+              if (existingIdx >= 0) {
+                const existing = all[existingIdx].toolCalls ?? [];
+                all[existingIdx] = { ...all[existingIdx], toolCalls: [...existing, tcData] };
+                toolCallMessageIndex.set(action.toolCallId, existingIdx);
+              } else {
+                all.push({ message: '', type: 'toolCallMessage' as messageType, toolCalls: [tcData] });
+                toolCallMessageIndex.set(action.toolCallId, all.length - 1);
+              }
+              return all;
+            });
+            break;
+          }
+
+          case 'tool_call_args': {
+            setMessages((prev) => {
+              const all = [...cloneDeep(prev)];
+              const msgIdx = toolCallMessageIndex.get(action.toolCallId);
+              if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
+              all[msgIdx] = {
+                ...all[msgIdx],
+                toolCalls: all[msgIdx].toolCalls!.map((tc) =>
+                  tc.toolCallId === action.toolCallId ? { ...tc, args: tc.args + action.delta } : tc,
+                ),
+              };
+              return all;
+            });
+            break;
+          }
+
+          case 'tool_call_end': {
+            setMessages((prev) => {
+              const all = [...cloneDeep(prev)];
+              const msgIdx = toolCallMessageIndex.get(action.toolCallId);
+              if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
+              all[msgIdx] = {
+                ...all[msgIdx],
+                toolCalls: all[msgIdx].toolCalls!.map((tc) =>
+                  tc.toolCallId === action.toolCallId ? { ...tc, status: 'completed' as const } : tc,
+                ),
+              };
+              return all;
+            });
+            break;
+          }
+
+          case 'activity':
+            break;
+
+          case 'run_finished':
+            setLocalStorageChatflow(chatflowid, chatIdVal);
+            closeResponse();
+            break;
+
+          case 'run_error':
+            handleError(action.message);
+            closeResponse();
+            break;
+        }
+      },
+      onclose() {
+        closeResponse();
+      },
+      onerror(err) {
+        console.error('AG-UI EventSource Error:', err);
         closeResponse();
         throw err;
       },
@@ -1317,6 +1552,39 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     return uploads;
   };
 
+  const sendCardInteraction = async (interaction: CardInteraction) => {
+    setLoading(true);
+    scrollToBottom();
+
+    const body: any = {
+      question: '',
+      chatId: chatId(),
+      card_interaction: {
+        card_id: interaction.card_id,
+        action_id: interaction.action_id,
+        payload: interaction.payload,
+      },
+    };
+
+    await fetchResponseFromAGUIStream(endpointId(), body);
+  };
+
+  const handleCardAction = (card: CardData, action: CardAction, payload: Record<string, any>) => {
+    sendCardInteraction({
+      card_id: card.card_id,
+      action_id: action.action_id,
+      payload,
+    });
+  };
+
+  const handleSelectionConfirm = (card: CardData, option: SelectionOption) => {
+    sendCardInteraction({
+      card_id: card.card_id,
+      action_id: 'select',
+      payload: { selected: option.value },
+    });
+  };
+
   // Handle form submission
   const handleSubmit = async (value: string | object, action?: IAction | undefined | null, humanInput?: any) => {
     if (typeof value === 'string' && value.trim() === '') {
@@ -1382,10 +1650,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     if (humanInput) body.humanInput = humanInput;
 
     if (isChatFlowAvailableToStream()) {
-      fetchResponseFromEventStream(props.chatflowid, body);
+      const streamHandler = isAGUI() ? fetchResponseFromAGUIStream : fetchResponseFromEventStream;
+      streamHandler(endpointId(), body);
     } else {
       const result = await sendMessageQuery({
-        chatflowid: props.chatflowid,
+        chatflowid: endpointId(),
         apiHost: props.apiHost,
         body,
         onRequest: props.onRequest,
@@ -1804,10 +2073,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         if (props.chatflowConfig) body.overrideConfig = props.chatflowConfig;
 
         if (isChatFlowAvailableToStream()) {
-          fetchResponseFromEventStream(props.chatflowid, body);
+          const streamHandler = isAGUI() ? fetchResponseFromAGUIStream : fetchResponseFromEventStream;
+          streamHandler(endpointId(), body);
         } else {
           sendMessageQuery({
-            chatflowid: props.chatflowid,
+            chatflowid: endpointId(),
             apiHost: props.apiHost,
             body,
             onRequest: props.onRequest,
@@ -2803,6 +3073,19 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                   {props.title}
                 </span>
               </Show>
+              <Show when={isAGUI()}>
+                <div
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    'border-radius': '50%',
+                    'background-color': streamConnected() ? '#22c55e' : '#94a3b8',
+                    transition: 'background-color 0.3s ease',
+                    'flex-shrink': '0',
+                  }}
+                  title={streamConnected() ? 'Connected' : 'Disconnected'}
+                />
+              </Show>
               <div style={{ flex: 1 }} />
               <DeleteButton
                 sendButtonColor={props.bubbleTextColor}
@@ -2886,6 +3169,54 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                           setIsLeadSaved={setIsLeadSaved}
                           setLeadEmail={setLeadEmail}
                         />
+                      )}
+                      {message.type === 'cardMessage' && message.card?.type_id === 'entity' && (
+                        <div class="flex justify-center mb-2">
+                          <EntityCardBubble
+                            card={message.card}
+                            backgroundColor={props.botMessage?.backgroundColor}
+                            textColor={props.botMessage?.textColor}
+                            fontSize={props.fontSize}
+                            onAction={handleCardAction}
+                          />
+                        </div>
+                      )}
+                      {message.type === 'cardMessage' && message.card?.type_id === 'selection' && (
+                        <div class="flex justify-center mb-2">
+                          <SelectionCardBubble
+                            card={message.card}
+                            backgroundColor={props.botMessage?.backgroundColor}
+                            textColor={props.botMessage?.textColor}
+                            fontSize={props.fontSize}
+                            accentColor={props.textInput?.sendButtonColor}
+                            onSelect={handleSelectionConfirm}
+                          />
+                        </div>
+                      )}
+                      {message.type === 'cardMessage' && message.card?.type_id === 'progress' && (
+                        <div class="flex justify-center mb-2">
+                          <ProgressCardBubble
+                            card={message.card}
+                            backgroundColor={props.botMessage?.backgroundColor}
+                            textColor={props.botMessage?.textColor}
+                            fontSize={props.fontSize}
+                            onAction={handleCardAction}
+                          />
+                        </div>
+                      )}
+                      {message.type === 'toolCallMessage' && message.toolCalls && (
+                        <div class="flex flex-col gap-1.5 mb-2">
+                          <For each={message.toolCalls}>
+                            {(tc) => (
+                              <ToolCallBubble
+                                toolCall={tc}
+                                backgroundColor={props.botMessage?.backgroundColor}
+                                textColor={props.botMessage?.textColor}
+                                fontSize={props.fontSize}
+                              />
+                            )}
+                          </For>
+                        </div>
                       )}
                       {message.type === 'userMessage' && loading() && index() === messages().length - 1 && <LoadingBubble />}
                       {message.type === 'apiMessage' && message.message === '' && loading() && index() === messages().length - 1 && <LoadingBubble />}
