@@ -18,8 +18,7 @@ const ENTITY_RENDERERS: Record<string, Component<Props>> = {
 
 const FIELD_EXCLUDES = ['entity_type'];
 
-const formatFieldLabel = (key: string): string =>
-  key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const formatFieldLabel = (key: string): string => key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const formatFieldValue = (value: any): string => {
   if (value === null || value === undefined) return '\u2014';
@@ -37,8 +36,7 @@ export const EntityCardBubble = (props: Props) => {
   }
 
   // Generic fallback for unmapped entity types
-  const fields = () =>
-    Object.entries(props.card.data).filter(([key]) => !FIELD_EXCLUDES.includes(key));
+  const fields = () => Object.entries(props.card.data).filter(([key]) => !FIELD_EXCLUDES.includes(key));
 
   const handleAction = (action: CardAction) => {
     const payload: Record<string, any> = {};
@@ -57,9 +55,7 @@ export const EntityCardBubble = (props: Props) => {
         'font-size': `${props.fontSize ?? 14}px`,
       }}
     >
-      <div class="px-4 py-2 border-b border-gray-200 font-semibold text-sm capitalize">
-        {formatFieldLabel(entityType())}
-      </div>
+      <div class="px-4 py-2 border-b border-gray-200 font-semibold text-sm capitalize">{formatFieldLabel(entityType())}</div>
       <div class="px-4 py-3 space-y-1.5">
         <For each={fields()}>
           {([key, value]) => (

@@ -45,12 +45,22 @@ const MetricCell = (props: { label: string; value: any; unit?: string; badge?: b
 
   return (
     <div class="flex flex-col">
-      <span class="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>{props.label}</span>
+      <span class="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>
+        {props.label}
+      </span>
       {props.badge ? (
         <Badge value={props.value} />
       ) : (
         <span class="text-sm font-semibold" style={{ color: '#1f2937' }}>
-          {formatted()}{props.unit ? <span class="text-xs font-normal" style={{ color: '#6b7280' }}> {props.unit}</span> : ''}
+          {formatted()}
+          {props.unit ? (
+            <span class="text-xs font-normal" style={{ color: '#6b7280' }}>
+              {' '}
+              {props.unit}
+            </span>
+          ) : (
+            ''
+          )}
         </span>
       )}
     </div>
@@ -89,13 +99,14 @@ export const DeviceCardBubble = (props: Props) => {
       }}
     >
       {/* Header — unit name + status */}
-      <div
-        class="px-4 py-3 flex items-center justify-between"
-        style={{ 'background-color': '#f8fafc', 'border-bottom': '1px solid #e5e7eb' }}
-      >
+      <div class="px-4 py-3 flex items-center justify-between" style={{ 'background-color': '#f8fafc', 'border-bottom': '1px solid #e5e7eb' }}>
         <div class="flex flex-col">
-          <span class="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>Device</span>
-          <span class="text-base font-bold" style={{ color: '#0f172a' }}>{d().unit_name ?? '\u2014'}</span>
+          <span class="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>
+            Device
+          </span>
+          <span class="text-base font-bold" style={{ color: '#0f172a' }}>
+            {d().unit_name ?? '\u2014'}
+          </span>
         </div>
         <div class="flex gap-1.5 items-center">
           <Badge value={d().status} />
@@ -106,7 +117,9 @@ export const DeviceCardBubble = (props: Props) => {
       <div class="px-4 py-3">
         {/* Vehicle + Online */}
         <div class="flex justify-between items-center mb-2">
-          <span class="text-xs" style={{ color: '#6b7280' }}>{d().vehicle_type ?? ''}</span>
+          <span class="text-xs" style={{ color: '#6b7280' }}>
+            {d().vehicle_type ?? ''}
+          </span>
           <div class="flex gap-1.5">
             <Badge value={d().online} label={d().online === true || d().online === 'true' ? 'Online' : 'Offline'} />
           </div>

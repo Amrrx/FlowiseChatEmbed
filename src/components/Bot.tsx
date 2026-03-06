@@ -1382,9 +1382,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
               all[msgIdx] = {
                 ...all[msgIdx],
-                toolCalls: all[msgIdx].toolCalls!.map((tc) =>
-                  tc.toolCallId === action.toolCallId ? { ...tc, args: tc.args + action.delta } : tc,
-                ),
+                toolCalls: all[msgIdx].toolCalls!.map((tc) => (tc.toolCallId === action.toolCallId ? { ...tc, args: tc.args + action.delta } : tc)),
               };
               return all;
             });
@@ -1398,9 +1396,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
               all[msgIdx] = {
                 ...all[msgIdx],
-                toolCalls: all[msgIdx].toolCalls!.map((tc) =>
-                  tc.toolCallId === action.toolCallId ? { ...tc, status: 'completed' as const } : tc,
-                ),
+                toolCalls: all[msgIdx].toolCalls!.map((tc) => (tc.toolCallId === action.toolCallId ? { ...tc, status: 'completed' as const } : tc)),
               };
               return all;
             });

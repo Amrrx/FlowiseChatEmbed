@@ -8,8 +8,7 @@ type Props = {
   fontSize?: number;
 };
 
-const formatToolName = (name: string): string =>
-  name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const formatToolName = (name: string): string => name.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const parseArgs = (raw: string): Array<[string, string]> => {
   try {

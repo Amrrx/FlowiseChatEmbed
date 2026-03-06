@@ -70,9 +70,7 @@ export const SelectionCardBubble = (props: Props) => {
       <div class="px-4 py-2 border-t border-gray-200 flex justify-end">
         <button
           class={`px-4 py-1.5 rounded text-xs font-medium transition-colors ${
-            selected() && !submitted()
-              ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            selected() && !submitted() ? 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
           style={selected() && !submitted() ? { 'background-color': props.accentColor ?? '#3B81F6' } : {}}
           disabled={!selected() || submitted()}

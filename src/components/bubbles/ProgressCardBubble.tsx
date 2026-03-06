@@ -49,9 +49,7 @@ export const ProgressCardBubble = (props: Props) => {
         <For each={steps()}>
           {(step) => (
             <div class="flex items-center gap-3 text-sm">
-              <span style={{ color: STATUS_COLOR[step.status] ?? '#9ca3af' }}>
-                {STATUS_ICON[step.status] ?? '\u25CB'}
-              </span>
+              <span style={{ color: STATUS_COLOR[step.status] ?? '#9ca3af' }}>{STATUS_ICON[step.status] ?? '\u25CB'}</span>
               <span class="flex-1">{step.label}</span>
               {step.result && <span class="text-xs text-gray-400 truncate max-w-[100px]">{step.result}</span>}
               {step.error && <span class="text-xs text-red-400 truncate max-w-[100px]">{step.error}</span>}
