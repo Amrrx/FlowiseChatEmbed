@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show, For } from 'solid-js';
 import type { ToolCallData } from '../../agui/types';
 
 type Props = {
@@ -58,11 +58,13 @@ export const ToolCallBubble = (props: Props) => {
       </div>
       <Show when={isCalling() && args().length > 0}>
         <div class="mt-1.5 pl-5 space-y-0.5 text-xs" style={{ color: '#9ca3af' }}>
-          {args().map(([key, value]) => (
-            <div class="truncate">
-              <span class="font-medium">{key}:</span> {value}
-            </div>
-          ))}
+          <For each={args()}>
+            {([key, value]) => (
+              <div class="truncate">
+                <span class="font-medium">{key}:</span> {value}
+              </div>
+            )}
+          </For>
         </div>
       </Show>
     </div>

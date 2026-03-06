@@ -1,5 +1,7 @@
-import { For } from 'solid-js';
+import { For, Component } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import type { CardData, CardAction } from '../../agui/types';
+import { DeviceCardBubble } from './DeviceCardBubble';
 
 type Props = {
   card: CardData;
@@ -7,6 +9,11 @@ type Props = {
   textColor?: string;
   fontSize?: number;
   onAction: (card: CardData, action: CardAction, payload: Record<string, any>) => void;
+};
+
+// Card renderer map — add specialized renderers here by entity_type
+const ENTITY_RENDERERS: Record<string, Component<Props>> = {
+  device: DeviceCardBubble,
 };
 
 const FIELD_EXCLUDES = ['entity_type'];
@@ -22,6 +29,14 @@ const formatFieldValue = (value: any): string => {
 
 export const EntityCardBubble = (props: Props) => {
   const entityType = () => props.card.data.entity_type ?? 'Entity';
+
+  // Delegate to specialized renderer if one exists
+  const specializedRenderer = () => ENTITY_RENDERERS[entityType()];
+  if (specializedRenderer()) {
+    return <Dynamic component={specializedRenderer()!} {...props} />;
+  }
+
+  // Generic fallback for unmapped entity types
   const fields = () =>
     Object.entries(props.card.data).filter(([key]) => !FIELD_EXCLUDES.includes(key));
 
