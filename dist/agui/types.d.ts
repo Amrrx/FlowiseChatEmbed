@@ -21,12 +21,19 @@ export type SelectionOption = {
     value: string;
     metadata?: Record<string, any>;
 };
+export type DisplayMapping = {
+    source: string;
+    type: 'text' | 'tags' | 'findings';
+    label?: string;
+};
 export type ProgressStep = {
     step_id: string;
     label: string;
     status: 'pending' | 'in_progress' | 'completed' | 'failed';
     result?: string;
     error?: string;
+    details?: Record<string, any>;
+    display_map?: DisplayMapping[];
 };
 export type CardInteraction = {
     card_id: string;

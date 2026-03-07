@@ -822,7 +822,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           const step = steps[i];
           if (step.triggers?.includes(event.status)) {
             matched = true;
-            patches.push({ op: 'replace', path: `/steps/${i}/status`, value: isFinal && ['failed', 'escalated'].includes(event.status) ? 'failed' : 'completed' });
+            patches.push({
+              op: 'replace',
+              path: `/steps/${i}/status`,
+              value: isFinal && ['failed', 'escalated'].includes(event.status) ? 'failed' : 'completed',
+            });
             if (event.message) {
               const msg = String(event.message);
               const field = /critical|error/i.test(msg) ? 'error' : 'result';

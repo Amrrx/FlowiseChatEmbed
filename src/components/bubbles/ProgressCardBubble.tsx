@@ -26,8 +26,7 @@ const SEVERITY_COLOR: Record<string, { bg: string; text: string; border: string 
 // Utilities
 // ---------------------------------------------------------------------------
 
-const resolvePath = (obj: any, path: string): any =>
-  path.split('.').reduce((curr, key) => curr?.[key], obj);
+const resolvePath = (obj: any, path: string): any => path.split('.').reduce((curr, key) => curr?.[key], obj);
 
 const hasDisplayData = (step: ProgressStep): boolean => {
   const dm = step.display_map;
@@ -99,7 +98,9 @@ const TagsRenderer = (props: { items: any[]; label?: string }) => {
   return (
     <div class="mt-1">
       <Show when={props.label}>
-        <span class="text-[10px] font-medium uppercase" style={{ color: '#9ca3af' }}>{props.label}</span>
+        <span class="text-[10px] font-medium uppercase" style={{ color: '#9ca3af' }}>
+          {props.label}
+        </span>
       </Show>
       <div class="flex flex-wrap gap-1 mt-0.5">
         <For each={tags()}>
@@ -139,7 +140,9 @@ const FindingsRenderer = (props: { findings: any[] }) => {
               style={{ 'background-color': colors().bg, 'border-left': `3px solid ${colors().border}` }}
             >
               <div class="flex items-center gap-2">
-                <span class="font-semibold" style={{ color: colors().text }}>{finding.title ?? 'Issue'}</span>
+                <span class="font-semibold" style={{ color: colors().text }}>
+                  {finding.title ?? 'Issue'}
+                </span>
                 <span
                   class="px-1.5 py-0 rounded text-[9px] font-bold uppercase"
                   style={{ 'background-color': colors().border, color: colors().text }}
@@ -148,7 +151,9 @@ const FindingsRenderer = (props: { findings: any[] }) => {
                 </span>
               </div>
               <Show when={finding.reason}>
-                <div class="mt-0.5" style={{ color: '#4b5563' }}>{finding.reason}</div>
+                <div class="mt-0.5" style={{ color: '#4b5563' }}>
+                  {finding.reason}
+                </div>
               </Show>
               <Show when={finding.recommendation}>
                 <div class="mt-0.5 flex items-start gap-1" style={{ color: '#6b7280' }}>
@@ -249,9 +254,13 @@ export const ProgressCardBubble = (props: Props) => {
         <div class="px-4 py-3 flex items-center gap-3" style={{ 'background-color': '#f8fafc', 'border-bottom': '1px solid #e5e7eb' }}>
           <span style={{ 'font-size': '20px', 'line-height': '1' }}>{icon()}</span>
           <div class="flex flex-col min-w-0">
-            <span class="text-sm font-bold" style={{ color: '#0f172a' }}>{title()}</span>
+            <span class="text-sm font-bold" style={{ color: '#0f172a' }}>
+              {title()}
+            </span>
             <Show when={subtitle()}>
-              <span class="text-[11px]" style={{ color: '#9ca3af' }}>{subtitle()}</span>
+              <span class="text-[11px]" style={{ color: '#9ca3af' }}>
+                {subtitle()}
+              </span>
             </Show>
           </div>
         </div>
@@ -288,19 +297,24 @@ export const ProgressCardBubble = (props: Props) => {
                       {step.label}
                     </span>
                     <Show when={step.status === 'in_progress'}>
-                      <span class="text-[10px] font-medium flex-shrink-0" style={{ color: '#2563eb' }}>IN PROGRESS</span>
+                      <span class="text-[10px] font-medium flex-shrink-0" style={{ color: '#2563eb' }}>
+                        IN PROGRESS
+                      </span>
                     </Show>
                   </div>
-                  <Show when={hasDisplayData(step)} fallback={
-                    <>
-                      <Show when={step.result}>
-                        <ResultFallback text={step.result!} variant="success" />
-                      </Show>
-                      <Show when={step.error}>
-                        <ResultFallback text={step.error!} variant="error" />
-                      </Show>
-                    </>
-                  }>
+                  <Show
+                    when={hasDisplayData(step)}
+                    fallback={
+                      <>
+                        <Show when={step.result}>
+                          <ResultFallback text={step.result!} variant="success" />
+                        </Show>
+                        <Show when={step.error}>
+                          <ResultFallback text={step.error!} variant="error" />
+                        </Show>
+                      </>
+                    }
+                  >
                     <DisplayMapRenderer displayMap={step.display_map!} details={step.details!} />
                   </Show>
                 </div>
