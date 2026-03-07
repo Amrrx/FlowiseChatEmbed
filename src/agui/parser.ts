@@ -1,4 +1,4 @@
-import type { AGUIAction, AGUIEvent, CardData } from './types';
+import type { AGUIAction, AGUIEvent, CardData, TaskLockData } from './types';
 
 const parseCustomEvent = (event: AGUIEvent): AGUIAction | null => {
   const name = event.name ?? '';
@@ -8,6 +8,10 @@ const parseCustomEvent = (event: AGUIEvent): AGUIAction | null => {
 
   if (name === 'entity_card' || name === 'selection_card' || name === 'progress_card') {
     return { type: 'card', card: value as CardData };
+  }
+
+  if (name === 'task_lock') {
+    return { type: 'task_lock', lock: value as TaskLockData };
   }
 
   return { type: 'unknown', raw: event };

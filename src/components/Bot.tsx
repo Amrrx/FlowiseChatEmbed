@@ -42,7 +42,7 @@ import { useChatbotBridge } from '@/bridge/useChatbotBridge';
 import { buildPromptFromEvent } from '@/bridge/promptTemplates';
 import { extractCommands } from '@/bridge/commandExtractor';
 import { parseAGUIEvent, connectStream, disconnectStream } from '@/agui';
-import type { CardData, CardAction, CardInteraction, SelectionOption, ToolCallData } from '@/agui/types';
+import type { CardData, CardAction, CardInteraction, SelectionOption, TaskLockData, ToolCallData } from '@/agui/types';
 import type { StreamEvent } from '@/agui/stream';
 import { EntityCardBubble } from './bubbles/EntityCardBubble';
 import { SelectionCardBubble } from './bubbles/SelectionCardBubble';
@@ -747,6 +747,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [leadEmail, setLeadEmail] = createSignal('');
   const [disclaimerPopupOpen, setDisclaimerPopupOpen] = createSignal(false);
   const [streamConnected, setStreamConnected] = createSignal(false);
+  const [activeTask, setActiveTask] = createSignal<(TaskLockData & { progress_message?: string }) | null>(null);
 
   const [openFeedbackDialog, setOpenFeedbackDialog] = createSignal(false);
   const [feedback, setFeedback] = createSignal('');
@@ -809,12 +810,45 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
   // Persistent SSE connection for proactive event delivery
   const handleStreamEvent = (event: StreamEvent) => {
+    const task = activeTask();
+    if (task && event.task_id === task.task_id) {
+      const steps = (task.context?.steps ?? []) as Array<{ step_id: string; label: string; triggers: string[] }>;
+      const isFinal = task.final_statuses?.includes(event.status);
+
+      if (steps.length > 0) {
+        const patches: Array<{ op: string; path: string; value: any }> = [];
+        let matched = false;
+        for (let i = 0; i < steps.length; i++) {
+          const step = steps[i];
+          if (step.triggers?.includes(event.status)) {
+            matched = true;
+            patches.push({ op: 'replace', path: `/steps/${i}/status`, value: isFinal && ['failed', 'escalated'].includes(event.status) ? 'failed' : 'completed' });
+            if (event.message) {
+              const msg = String(event.message);
+              const field = /critical|error/i.test(msg) ? 'error' : 'result';
+              patches.push({ op: 'replace', path: `/steps/${i}/${field}`, value: msg });
+            }
+            if (event.details && typeof event.details === 'object') {
+              patches.push({ op: 'replace', path: `/steps/${i}/details`, value: event.details });
+            }
+          } else if (!matched) {
+            patches.push({ op: 'replace', path: `/steps/${i}/status`, value: 'completed' });
+          } else {
+            break;
+          }
+        }
+        if (patches.length > 0) updateProgressCard(task.task_id, patches);
+      }
+
+      if (isFinal) {
+        setActiveTask(null);
+      }
+      return;
+    }
+
     switch (event.type) {
       case 'ack':
         console.log('[STREAM] Connected:', event);
-        break;
-      case 'notification':
-        console.log('[STREAM] Notification:', event);
         break;
       default:
         console.log('[STREAM] Event:', event);
@@ -980,8 +1014,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         allMessages.push(cardMsg);
       }
 
-      // Remove tool call bubble when an entity card appears (card replaces it visually)
-      if (card.type_id === 'entity') {
+      // Remove tool call bubble when a card appears (card replaces it visually)
+      if (card.type_id === 'entity' || card.type_id === 'progress') {
         const tcIdx = allMessages.findIndex((m) => m.type === 'toolCallMessage');
         if (tcIdx >= 0) allMessages.splice(tcIdx, 1);
       }
@@ -1349,6 +1383,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             if (action.card.type_id === 'progress') {
               lastProgressCardId = action.card.card_id;
             }
+            break;
+
+          case 'task_lock':
+            setActiveTask(action.lock);
             break;
 
           case 'state_delta':
@@ -2416,6 +2454,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const messagesArray = messages();
     const disabled =
       loading() ||
+      !!activeTask() ||
       !props.chatflowid ||
       (leadsConfig()?.status && !isLeadSaved()) ||
       (messagesArray.length > 0 &&

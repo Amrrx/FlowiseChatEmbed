@@ -73,11 +73,21 @@ export type AGUIAction = {
     type: 'tool_call_end';
     toolCallId: string;
 } | {
+    type: 'task_lock';
+    lock: TaskLockData;
+} | {
     type: 'activity';
     content: string;
 } | {
     type: 'unknown';
     raw: AGUIEvent;
+};
+export type TaskLockData = {
+    task_id: string;
+    task_type: string;
+    description: string;
+    context: Record<string, any>;
+    final_statuses: string[];
 };
 export type ToolCallData = {
     toolCallId: string;

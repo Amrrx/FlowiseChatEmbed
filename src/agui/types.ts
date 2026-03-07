@@ -40,12 +40,20 @@ export type SelectionOption = {
   metadata?: Record<string, any>;
 };
 
+export type DisplayMapping = {
+  source: string;
+  type: 'text' | 'tags' | 'findings';
+  label?: string;
+};
+
 export type ProgressStep = {
   step_id: string;
   label: string;
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   result?: string;
   error?: string;
+  details?: Record<string, any>;
+  display_map?: DisplayMapping[];
 };
 
 export type CardInteraction = {
@@ -67,8 +75,17 @@ export type AGUIAction =
   | { type: 'tool_call_start'; toolCallId: string; toolName: string }
   | { type: 'tool_call_args'; toolCallId: string; delta: string }
   | { type: 'tool_call_end'; toolCallId: string }
+  | { type: 'task_lock'; lock: TaskLockData }
   | { type: 'activity'; content: string }
   | { type: 'unknown'; raw: AGUIEvent };
+
+export type TaskLockData = {
+  task_id: string;
+  task_type: string;
+  description: string;
+  context: Record<string, any>;
+  final_statuses: string[];
+};
 
 export type ToolCallData = {
   toolCallId: string;

@@ -33,10 +33,12 @@
                     protocol: "ag-ui",                  // activate AG-UI mode
                     apiPath: "/chat",                   // your gateway path
                     agentId: "avl-agent",              // replaces chatflowid for routing
-                    
+
                     chatflowConfig: {
                         streaming: true,
                         sessionId: `session_${Date.now()}`,
+
+                        // "sessionId": "123"
                         vars: {
                             userId: "5e6655bf03ed52e1ab79d301",
                             userToken: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vYXBpLmFmYXF5LnByby9hdXRoL2xvZ2luIiwiaWF0IjoxNzcxOTk1MDQ5LCJleHAiOjE3NzQ1ODcwNDksIm5iZiI6MTc3MTk5NTA0OSwianRpIjoiYXRna3F0UXI0SmY0TU9YMiIsInN1YiI6IjVlNjY1NWJmMDNlZDUyZTFhYjc5ZDMwMSIsInBydiI6IjI3MGVjZmM3ZWEzZWQ5MzdlYTg0OTM2MmEzYTUwOTEwYzZkOGNlNGYifQ.NM9MFsL89AsYt6SdzsQwDUf8XUgvHfHCZiG5O_WsZpM",
