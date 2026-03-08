@@ -854,6 +854,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       case 'ack':
         console.log('[STREAM] Connected:', event);
         break;
+      case 'bot_message':
+        setMessages((prev) => [...prev, { message: event.text ?? '', type: 'apiMessage' }]);
+        break;
       default:
         console.log('[STREAM] Event:', event);
     }
@@ -870,6 +873,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       agentId: props.agentId,
       userId: vars.userId,
       userToken: vars.userToken ?? '',
+      chatId: chatId(),
       onEvent: handleStreamEvent,
       onConnect: () => setStreamConnected(true),
       onDisconnect: () => setStreamConnected(false),
