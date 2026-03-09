@@ -59,10 +59,7 @@ const PriorityBadge = (props: { priority: string }) => {
   const p = () => String(props.priority ?? 'medium').toLowerCase();
   const colors = () => PRIORITY_COLOR[p()] ?? PRIORITY_COLOR.medium;
   return (
-    <span
-      class="px-1.5 py-0 rounded text-[9px] font-bold uppercase"
-      style={{ 'background-color': colors().bg, color: colors().text }}
-    >
+    <span class="px-1.5 py-0 rounded text-[9px] font-bold uppercase" style={{ 'background-color': colors().bg, color: colors().text }}>
       {p()}
     </span>
   );
@@ -72,10 +69,7 @@ const SeverityBadge = (props: { severity: string }) => {
   const s = () => String(props.severity ?? 'medium').toLowerCase();
   const colors = () => SEVERITY_COLOR[s()] ?? SEVERITY_COLOR.medium;
   return (
-    <span
-      class="px-1.5 py-0 rounded text-[9px] font-bold uppercase"
-      style={{ 'background-color': colors().border, color: colors().text }}
-    >
+    <span class="px-1.5 py-0 rounded text-[9px] font-bold uppercase" style={{ 'background-color': colors().border, color: colors().text }}>
       {s()}
     </span>
   );
@@ -87,10 +81,7 @@ const SectionHeader = (props: { icon: string; title: string; count: number; colo
     <span class="text-[11px] uppercase tracking-wider font-semibold" style={{ color: props.color }}>
       {props.title}
     </span>
-    <span
-      class="px-1.5 py-0 rounded-full text-[10px] font-semibold"
-      style={{ 'background-color': props.color + '18', color: props.color }}
-    >
+    <span class="px-1.5 py-0 rounded-full text-[10px] font-semibold" style={{ 'background-color': props.color + '18', color: props.color }}>
       {props.count}
     </span>
   </div>
@@ -101,10 +92,7 @@ const SectionHeader = (props: { icon: string; title: string; count: number; colo
 // ---------------------------------------------------------------------------
 
 const FailedCheck = (props: { check: ValidationCheck; rcaHint: RCAEntry | undefined }) => (
-  <div
-    class="rounded-md px-2.5 py-2 mb-1.5"
-    style={{ 'background-color': '#fef2f2', border: '1px solid #fecaca' }}
-  >
+  <div class="rounded-md px-2.5 py-2 mb-1.5" style={{ 'background-color': '#fef2f2', border: '1px solid #fecaca' }}>
     <div class="flex items-center gap-1.5 flex-wrap">
       <span style={{ color: '#dc2626', 'font-size': '12px' }}>{'\u2717'}</span>
       <span class="text-[12px] font-medium flex-1 min-w-0" style={{ color: '#1f2937' }}>
@@ -114,20 +102,27 @@ const FailedCheck = (props: { check: ValidationCheck; rcaHint: RCAEntry | undefi
     </div>
     <div class="grid grid-cols-2 gap-2 mt-1.5 ml-4">
       <div>
-        <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>Expected</span>
-        <div class="text-[12px] font-medium" style={{ color: '#16a34a' }}>{props.check.expected}</div>
+        <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>
+          Expected
+        </span>
+        <div class="text-[12px] font-medium" style={{ color: '#16a34a' }}>
+          {props.check.expected}
+        </div>
       </div>
       <div>
-        <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>Actual</span>
-        <div class="text-[12px] font-medium" style={{ color: '#dc2626' }}>{props.check.actual}</div>
+        <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>
+          Actual
+        </span>
+        <div class="text-[12px] font-medium" style={{ color: '#dc2626' }}>
+          {props.check.actual}
+        </div>
       </div>
     </div>
     <Show when={props.rcaHint}>
       <div class="mt-1.5 ml-4 flex items-start gap-1 text-[11px]" style={{ color: '#92400e' }}>
         <span>{'\uD83D\uDCA1'}</span>
         <span>
-          <span class="font-semibold">{props.rcaHint!.title}:</span>{' '}
-          {props.rcaHint!.recommendation}
+          <span class="font-semibold">{props.rcaHint!.title}:</span> {props.rcaHint!.recommendation}
         </span>
       </div>
     </Show>
@@ -141,7 +136,9 @@ const FailedCheck = (props: { check: ValidationCheck; rcaHint: RCAEntry | undefi
 const PassedCheck = (props: { check: ValidationCheck }) => (
   <div class="flex items-center gap-1.5 py-0.5">
     <span style={{ color: '#16a34a', 'font-size': '11px' }}>{'\u2713'}</span>
-    <span class="text-[12px]" style={{ color: '#4b5563' }}>{props.check.comment}</span>
+    <span class="text-[12px]" style={{ color: '#4b5563' }}>
+      {props.check.comment}
+    </span>
   </div>
 );
 
@@ -153,10 +150,7 @@ const RCACard = (props: { rca: RCAEntry }) => {
   const s = () => String(props.rca.severity ?? 'medium').toLowerCase();
   const colors = () => SEVERITY_COLOR[s()] ?? SEVERITY_COLOR.medium;
   return (
-    <div
-      class="rounded-md px-2.5 py-2 mb-1.5"
-      style={{ 'background-color': '#fffbeb', border: '1px solid #fde68a' }}
-    >
+    <div class="rounded-md px-2.5 py-2 mb-1.5" style={{ 'background-color': '#fffbeb', border: '1px solid #fde68a' }}>
       <div class="flex items-center gap-2">
         <SeverityBadge severity={props.rca.severity} />
         <span class="text-[12px] font-semibold" style={{ color: colors().text }}>
@@ -219,8 +213,7 @@ export const HealthCheckCardBubble = (props: Props) => {
 
   const [passedExpanded, setPassedExpanded] = createSignal(false);
 
-  const rcaForTag = (tag: string): RCAEntry | undefined =>
-    rcaList().find((rca) => rca.matched_tags?.includes(tag));
+  const rcaForTag = (tag: string): RCAEntry | undefined => rcaList().find((rca) => rca.matched_tags?.includes(tag));
 
   const handleAction = (action: CardAction) => {
     const payload: Record<string, any> = {};
@@ -243,10 +236,7 @@ export const HealthCheckCardBubble = (props: Props) => {
       }}
     >
       {/* Header */}
-      <div
-        class="px-4 py-3 flex items-center justify-between"
-        style={{ 'background-color': headerBg(), 'border-bottom': '1px solid #e5e7eb' }}
-      >
+      <div class="px-4 py-3 flex items-center justify-between" style={{ 'background-color': headerBg(), 'border-bottom': '1px solid #e5e7eb' }}>
         <div class="flex items-center gap-2">
           <span style={{ 'font-size': '18px', 'line-height': '1' }}>{headerIcon()}</span>
           <div class="flex flex-col">
@@ -269,10 +259,7 @@ export const HealthCheckCardBubble = (props: Props) => {
       <div class="px-4 py-3">
         {/* Error state */}
         <Show when={isError()}>
-          <div
-            class="rounded-md px-3 py-2 text-[12px]"
-            style={{ 'background-color': '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
-          >
+          <div class="rounded-md px-3 py-2 text-[12px]" style={{ 'background-color': '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
             {errorMessage()}
           </div>
         </Show>
@@ -283,10 +270,16 @@ export const HealthCheckCardBubble = (props: Props) => {
           <div class="flex items-center justify-between text-[11px] mb-3" style={{ color: '#6b7280' }}>
             <div class="flex items-center gap-3">
               <span>
-                Scope: <span class="font-medium capitalize" style={{ color: '#374151' }}>{scope()}</span>
+                Scope:{' '}
+                <span class="font-medium capitalize" style={{ color: '#374151' }}>
+                  {scope()}
+                </span>
               </span>
               <span>
-                Pass: <span class="font-medium" style={{ color: statusColor() }}>{passCount()}/{totalCount()}</span>
+                Pass:{' '}
+                <span class="font-medium" style={{ color: statusColor() }}>
+                  {passCount()}/{totalCount()}
+                </span>
               </span>
             </div>
             <span class="text-[10px]" style={{ color: '#9ca3af' }}>
@@ -313,13 +306,8 @@ export const HealthCheckCardBubble = (props: Props) => {
               </span>
             </button>
             <Show when={passedExpanded()}>
-              <div
-                class="mt-2 pl-2"
-                style={{ 'border-left': '2px solid #bbf7d0' }}
-              >
-                <For each={passedChecks()}>
-                  {(check) => <PassedCheck check={check} />}
-                </For>
+              <div class="mt-2 pl-2" style={{ 'border-left': '2px solid #bbf7d0' }}>
+                <For each={passedChecks()}>{(check) => <PassedCheck check={check} />}</For>
               </div>
             </Show>
           </Show>
@@ -329,9 +317,7 @@ export const HealthCheckCardBubble = (props: Props) => {
             {/* Failed section */}
             <Show when={failCount() > 0}>
               <SectionHeader icon={'\u2717'} title="Failed" count={failCount()} color="#dc2626" />
-              <For each={failedChecks()}>
-                {(check) => <FailedCheck check={check} rcaHint={rcaForTag(check.tag)} />}
-              </For>
+              <For each={failedChecks()}>{(check) => <FailedCheck check={check} rcaHint={rcaForTag(check.tag)} />}</For>
             </Show>
 
             {/* Passed section */}
@@ -339,9 +325,7 @@ export const HealthCheckCardBubble = (props: Props) => {
               <div style={{ 'margin-top': failCount() > 0 ? '12px' : '0' }}>
                 <SectionHeader icon={'\u2713'} title="Passed" count={passCount()} color="#16a34a" />
                 <div class="pl-2" style={{ 'border-left': '2px solid #bbf7d0' }}>
-                  <For each={passedChecks()}>
-                    {(check) => <PassedCheck check={check} />}
-                  </For>
+                  <For each={passedChecks()}>{(check) => <PassedCheck check={check} />}</For>
                 </div>
               </div>
             </Show>
@@ -355,9 +339,7 @@ export const HealthCheckCardBubble = (props: Props) => {
                     Root Cause Analysis
                   </span>
                 </div>
-                <For each={rcaList()}>
-                  {(rca) => <RCACard rca={rca} />}
-                </For>
+                <For each={rcaList()}>{(rca) => <RCACard rca={rca} />}</For>
               </div>
             </Show>
           </Show>
