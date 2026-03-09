@@ -2,6 +2,7 @@ import { For, Component } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import type { CardData, CardAction } from '../../agui/types';
 import { DeviceCardBubble } from './DeviceCardBubble';
+import { HealthCheckCardBubble } from './HealthCheckCardBubble';
 
 type Props = {
   card: CardData;
@@ -14,6 +15,7 @@ type Props = {
 // Card renderer map — add specialized renderers here by entity_type
 const ENTITY_RENDERERS: Record<string, Component<Props>> = {
   device: DeviceCardBubble,
+  health_check: HealthCheckCardBubble,
 };
 
 const FIELD_EXCLUDES = ['entity_type'];
