@@ -2,6 +2,8 @@ import { FeedbackRatingType } from '@/queries/sendMessageQuery';
 import { BotMessageTheme, FooterTheme, TextInputTheme, UserMessageTheme, FeedbackTheme, DisclaimerPopUpTheme, DateTimeToggleTheme } from '@/features/bubble/types';
 import { FilePreview } from '@/components/inputs/textInput/components/FilePreview';
 import type { CardData, ToolCallData } from '@/agui/types';
+import type { StreamEvent } from '@/agui/stream';
+import type { Notification } from '@/api/notifications';
 export type FileEvent<T = EventTarget> = {
     target: T;
 };
@@ -28,7 +30,7 @@ type FilePreview = {
     preview: string;
     type: string;
 };
-type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage';
+type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage' | 'notification' | 'notificationSummary';
 type ExecutionState = 'INPROGRESS' | 'FINISHED' | 'ERROR' | 'TERMINATED' | 'TIMEOUT' | 'STOPPED';
 export type IAgentReasoning = {
     agentName?: string;
@@ -130,6 +132,11 @@ export type BotProps = {
     renderHTML?: boolean;
     autoMessage?: AutoMessageConfig;
     closeBot?: () => void;
+    streamConnected?: boolean;
+    notifications?: () => Notification[];
+    unreadCount?: number;
+    setUnreadCount?: (fn: (prev: number) => number) => void;
+    registerStreamHandler?: (handler: (event: StreamEvent) => void) => (() => void);
 };
 export type LeadsConfig = {
     status: boolean;

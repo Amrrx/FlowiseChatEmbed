@@ -10,6 +10,8 @@ type Props = ButtonTheme & {
   autoOpen?: boolean; // Optional parameter to control automatic window opening
   openDelay?: number; // Optional parameter for delay time in seconds
   autoOpenOnMobile?: boolean; // Optional parameter for opening on mobile
+  streamConnected?: boolean;
+  unreadCount?: number;
 };
 
 const defaultButtonColor = '#00B8D9';
@@ -141,6 +143,47 @@ export const BubbleButton = (props: Props) => {
             d="M18.601 8.39897C18.269 8.06702 17.7309 8.06702 17.3989 8.39897L12 13.7979L6.60099 8.39897C6.26904 8.06702 5.73086 8.06702 5.39891 8.39897C5.06696 8.73091 5.06696 9.2691 5.39891 9.60105L11.3989 15.601C11.7309 15.933 12.269 15.933 12.601 15.601L18.601 9.60105C18.9329 9.2691 18.9329 8.73091 18.601 8.39897Z"
           />
         </svg>
+
+        {/* Connection LED — bottom left */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '2px',
+            left: '2px',
+            width: '10px',
+            height: '10px',
+            'border-radius': '50%',
+            'background-color': props.streamConnected ? '#22c55e' : '#94a3b8',
+            border: '2px solid #1a1a2e',
+            'box-shadow': props.streamConnected ? '0 0 6px rgba(34,197,94,0.5)' : 'none',
+            transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+          }}
+          title={props.streamConnected ? 'Connected' : 'Disconnected'}
+        />
+
+        {/* Notification badge — top right */}
+        <Show when={(props.unreadCount ?? 0) > 0}>
+          <div
+            style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-4px',
+              background: '#ef4444',
+              color: 'white',
+              'font-size': '10px',
+              'font-weight': '700',
+              'border-radius': '50%',
+              'min-width': '18px',
+              height: '18px',
+              display: 'flex',
+              'align-items': 'center',
+              'justify-content': 'center',
+              border: '2px solid #1a1a2e',
+            }}
+          >
+            {props.unreadCount}
+          </div>
+        </Show>
       </button>
     </Show>
   );

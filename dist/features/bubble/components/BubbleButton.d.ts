@@ -10,6 +10,8 @@ type Props = ButtonTheme & {
     autoOpen?: boolean;
     openDelay?: number;
     autoOpenOnMobile?: boolean;
+    streamConnected?: boolean;
+    unreadCount?: number;
 };
 export declare const BubbleButton: (props: Props) => import("solid-js").JSX.Element;
 export {};

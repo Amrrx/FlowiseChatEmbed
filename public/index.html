@@ -29,7 +29,7 @@
                 // Initialize chatbot with enhanced header
                 Chatbot.init({
                     chatflowid: "a4bb36ce-c799-4e28-b36a-bbb2cbc9c8fc",
-                    apiHost: "http://localhost:9099",
+                    apiHost: "http://localhost:9091",
                     protocol: "ag-ui",                  // activate AG-UI mode
                     apiPath: "/chat",                   // your gateway path
                     agentId: "avl-agent",              // replaces chatflowid for routing
@@ -75,7 +75,7 @@
                             iconColor: 'white',
                             // customIconSrc: 'https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/google-messages.svg',
                             autoWindowOpen: {
-                                autoOpen: true, //parameter to control automatic window opening
+                                autoOpen: false, //parameter to control automatic window opening
                                 openDelay: 2, // Optional parameter for delay time in seconds
                                 autoOpenOnMobile: false, //parameter to control automatic window opening in mobile
                             },

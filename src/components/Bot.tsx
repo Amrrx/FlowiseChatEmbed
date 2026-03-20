@@ -41,13 +41,17 @@ import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event
 import { useChatbotBridge } from '@/bridge/useChatbotBridge';
 import { buildPromptFromEvent } from '@/bridge/promptTemplates';
 import { extractCommands } from '@/bridge/commandExtractor';
-import { parseAGUIEvent, connectStream, disconnectStream } from '@/agui';
+import { parseAGUIEvent } from '@/agui';
 import type { CardData, CardAction, CardInteraction, SelectionOption, TaskLockData, ToolCallData } from '@/agui/types';
 import type { StreamEvent } from '@/agui/stream';
 import { EntityCardBubble } from './bubbles/EntityCardBubble';
 import { SelectionCardBubble } from './bubbles/SelectionCardBubble';
 import { ProgressCardBubble } from './bubbles/ProgressCardBubble';
 import { ToolCallBubble } from './bubbles/ToolCallBubble';
+import { NotificationBubble } from './bubbles/NotificationBubble';
+import { NotificationSummaryCard } from './bubbles/NotificationSummaryCard';
+import type { Notification } from '@/api/notifications';
+import { markNotificationsRead } from '@/api/notifications';
 
 export type FileEvent<T = EventTarget> = {
   target: T;
@@ -81,7 +85,7 @@ type FilePreview = {
   type: string;
 };
 
-type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage';
+type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage' | 'notification' | 'notificationSummary';
 type ExecutionState = 'INPROGRESS' | 'FINISHED' | 'ERROR' | 'TERMINATED' | 'TIMEOUT' | 'STOPPED';
 
 export type IAgentReasoning = {
@@ -196,6 +200,11 @@ export type BotProps = {
   renderHTML?: boolean;
   autoMessage?: AutoMessageConfig;
   closeBot?: () => void;
+  streamConnected?: boolean;
+  notifications?: () => Notification[];
+  unreadCount?: number;
+  setUnreadCount?: (fn: (prev: number) => number) => void;
+  registerStreamHandler?: (handler: (event: StreamEvent) => void) => (() => void);
 };
 
 export type LeadsConfig = {
@@ -746,7 +755,6 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [isLeadSaved, setIsLeadSaved] = createSignal(false);
   const [leadEmail, setLeadEmail] = createSignal('');
   const [disclaimerPopupOpen, setDisclaimerPopupOpen] = createSignal(false);
-  const [streamConnected, setStreamConnected] = createSignal(false);
   const [activeTask, setActiveTask] = createSignal<(TaskLockData & { progress_message?: string }) | null>(null);
 
   const [openFeedbackDialog, setOpenFeedbackDialog] = createSignal(false);
@@ -857,29 +865,30 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       case 'bot_message':
         setMessages((prev) => [...prev, { message: event.text ?? '', type: 'apiMessage' }]);
         break;
+      case 'notification': {
+        const notif = event as unknown as Notification;
+        setMessages((prev) => [...prev, {
+          message: '',
+          type: 'notification',
+          notification: notif,
+        } as any]);
+        // Auto-mark read
+        const apiHost = props.apiHost ?? '';
+        const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
+        markNotificationsRead(apiHost, vars.userId ?? '', [notif.notification_id]).catch(/* no-op */ Function.prototype as () => void);
+        props.setUnreadCount?.((c: number) => Math.max(0, c - 1));
+        break;
+      }
       default:
         console.log('[STREAM] Event:', event);
     }
   };
 
+  // Register stream event handler with Bubble's connection
   createEffect(() => {
-    if (!isAGUI()) return;
-
-    const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
-    if (!vars.userId || !props.agentId) return;
-
-    connectStream({
-      apiHost: props.apiHost ?? '',
-      agentId: props.agentId,
-      userId: vars.userId,
-      userToken: vars.userToken ?? '',
-      chatId: chatId(),
-      onEvent: handleStreamEvent,
-      onConnect: () => setStreamConnected(true),
-      onDisconnect: () => setStreamConnected(false),
-    });
-
-    onCleanup(() => disconnectStream());
+    if (!props.registerStreamHandler) return;
+    const unregister = props.registerStreamHandler(handleStreamEvent);
+    onCleanup(unregister);
   });
 
   createMemo(() => {
@@ -907,7 +916,27 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         });
     }
 
-    if (!bottomSpacer) return;
+  });
+
+  // Notification injection — waits for both history load AND notification fetch
+  const [historyLoaded, setHistoryLoaded] = createSignal(false);
+  let notificationsInjected = false;
+  createEffect(() => {
+    if (!historyLoaded()) return;
+    const notifs = props.notifications?.() ?? [];
+    if (notificationsInjected || notifs.length === 0) return;
+    notificationsInjected = true;
+
+    setMessages((prev) => [
+      ...prev,
+      { message: '', type: 'notificationSummary', notifications: notifs } as any,
+    ]);
+    const apiHost = props.apiHost ?? '';
+    const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
+    const ids = notifs.map((n) => n.notification_id);
+    markNotificationsRead(apiHost, vars.userId ?? '', ids).catch(/* no-op */ Function.prototype as () => void);
+    props.setUnreadCount?.(() => 0);
+
     setTimeout(() => {
       chatContainer?.scrollTo(0, chatContainer.scrollHeight);
     }, 50);
@@ -1947,6 +1976,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
       const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage');
       setMessages([...filteredMessages]);
+      setHistoryLoaded(true);
     }
 
     // Determine if particular chatflow is available for streaming
@@ -3122,11 +3152,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                     width: '8px',
                     height: '8px',
                     'border-radius': '50%',
-                    'background-color': streamConnected() ? '#22c55e' : '#94a3b8',
+                    'background-color': props.streamConnected ? '#22c55e' : '#94a3b8',
                     transition: 'background-color 0.3s ease',
                     'flex-shrink': '0',
                   }}
-                  title={streamConnected() ? 'Connected' : 'Disconnected'}
+                  title={props.streamConnected ? 'Connected' : 'Disconnected'}
                 />
               </Show>
               <div style={{ flex: 1 }} />
@@ -3260,6 +3290,12 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                             )}
                           </For>
                         </div>
+                      )}
+                      {message.type === 'notification' && (message as any).notification && (
+                        <NotificationBubble notification={(message as any).notification} />
+                      )}
+                      {message.type === 'notificationSummary' && (message as any).notifications?.length > 0 && (
+                        <NotificationSummaryCard notifications={(message as any).notifications} />
                       )}
                       {message.type === 'userMessage' && loading() && index() === messages().length - 1 && <LoadingBubble />}
                       {message.type === 'apiMessage' && message.message === '' && loading() && index() === messages().length - 1 && <LoadingBubble />}

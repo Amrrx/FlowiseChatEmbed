@@ -1,10 +1,13 @@
-import { createSignal, Show, splitProps, onCleanup, createEffect } from 'solid-js';
+import { createSignal, Show, splitProps, onCleanup, createEffect, onMount } from 'solid-js';
 import styles from '../../../assets/index.css';
 import { BubbleButton } from './BubbleButton';
 import { BubbleParams } from '../types';
 import { Bot, BotProps } from '../../../components/Bot';
 import Tooltip from './Tooltip';
 import { getBubbleButtonSize } from '@/utils';
+import { connectStream, disconnectStream } from '@/agui/stream';
+import type { StreamEvent } from '@/agui/stream';
+import { fetchUnreadNotifications, type Notification } from '@/api/notifications';
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
@@ -20,6 +23,11 @@ export const Bubble = (props: BubbleProps) => {
     bottom: bubbleProps.theme?.button?.bottom ?? 20,
     right: bubbleProps.theme?.button?.right ?? 20,
   });
+
+  const [streamConnected, setStreamConnected] = createSignal(false);
+  const [notifications, setNotifications] = createSignal<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = createSignal(0);
+  const [streamEventHandlers, setStreamEventHandlers] = createSignal<Array<(event: StreamEvent) => void>>([]);
 
   const openBot = () => {
     if (!isBotStarted()) setIsBotStarted(true);
@@ -54,6 +62,51 @@ export const Bubble = (props: BubbleProps) => {
     };
   });
 
+  // Connect to /stream at page load for notifications + real-time events
+  onMount(() => {
+    if (props.protocol !== 'ag-ui') return;
+
+    const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
+    if (!vars.userId || !props.agentId) return;
+
+    const chatId = vars.customerId
+      ? `${vars.customerId}+${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
+      : crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+
+    connectStream({
+      apiHost: props.apiHost ?? '',
+      agentId: props.agentId,
+      userId: vars.userId,
+      userToken: vars.userToken ?? '',
+      chatId,
+      onEvent: (event: StreamEvent) => {
+        if (event.type === 'notification') {
+          setNotifications((prev) => [event as unknown as Notification, ...prev]);
+          setUnreadCount((c) => c + 1);
+        }
+        for (const handler of streamEventHandlers()) {
+          handler(event);
+        }
+      },
+      onConnect: () => {
+        setStreamConnected(true);
+        const apiHost = props.apiHost ?? '';
+        fetchUnreadNotifications(apiHost, vars.userId).then((res) => {
+          setNotifications(res.notifications);
+          setUnreadCount(res.unread_count);
+        }).catch((err) => console.warn('[Notifications] Fetch failed:', err));
+      },
+      onDisconnect: () => setStreamConnected(false),
+    });
+  });
+
+  onCleanup(() => disconnectStream());
+
+  const registerStreamHandler = (handler: (event: StreamEvent) => void) => {
+    setStreamEventHandlers((prev) => [...prev, handler]);
+    return () => setStreamEventHandlers((prev) => prev.filter((h) => h !== handler));
+  };
+
   const showTooltip = bubbleProps.theme?.tooltip?.showTooltip ?? false;
 
   return (
@@ -80,6 +133,8 @@ export const Bubble = (props: BubbleProps) => {
         autoOpen={bubbleProps.theme?.button?.autoWindowOpen?.autoOpen ?? false}
         openDelay={bubbleProps.theme?.button?.autoWindowOpen?.openDelay}
         autoOpenOnMobile={bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile ?? false}
+        streamConnected={streamConnected()}
+        unreadCount={unreadCount()}
       />
       <div
         part="bot"
@@ -163,6 +218,11 @@ export const Bubble = (props: BubbleProps) => {
               renderHTML={props.theme?.chatWindow?.renderHTML}
               autoMessage={bubbleProps.theme?.chatWindow?.autoMessage}
               closeBot={closeBot}
+              streamConnected={streamConnected()}
+              notifications={notifications}
+              unreadCount={unreadCount()}
+              setUnreadCount={setUnreadCount}
+              registerStreamHandler={registerStreamHandler}
             />
           </div>
         </Show>
