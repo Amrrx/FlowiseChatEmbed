@@ -91,10 +91,12 @@ export const Bubble = (props: BubbleProps) => {
       onConnect: () => {
         setStreamConnected(true);
         const apiHost = props.apiHost ?? '';
-        fetchUnreadNotifications(apiHost, vars.userId).then((res) => {
-          setNotifications(res.notifications);
-          setUnreadCount(res.unread_count);
-        }).catch((err) => console.warn('[Notifications] Fetch failed:', err));
+        fetchUnreadNotifications(apiHost, vars.userId)
+          .then((res) => {
+            setNotifications(res.notifications);
+            setUnreadCount(res.unread_count);
+          })
+          .catch((err) => console.warn('[Notifications] Fetch failed:', err));
       },
       onDisconnect: () => setStreamConnected(false),
     });

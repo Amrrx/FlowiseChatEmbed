@@ -20,11 +20,7 @@ export type NotificationResponse = {
   total_count: number;
 };
 
-export async function fetchUnreadNotifications(
-  apiHost: string,
-  userId: string,
-  limit = 50,
-): Promise<NotificationResponse> {
+export async function fetchUnreadNotifications(apiHost: string, userId: string, limit = 50): Promise<NotificationResponse> {
   const url = `${apiHost}/api/notifications?unread_only=true&limit=${limit}`;
   const response = await fetch(url, {
     headers: { 'X-User-ID': userId },
@@ -35,11 +31,7 @@ export async function fetchUnreadNotifications(
   return response.json();
 }
 
-export async function markNotificationsRead(
-  apiHost: string,
-  userId: string,
-  notificationIds: string[],
-): Promise<void> {
+export async function markNotificationsRead(apiHost: string, userId: string, notificationIds: string[]): Promise<void> {
   await fetch(`${apiHost}/api/notifications/read`, {
     method: 'POST',
     headers: {

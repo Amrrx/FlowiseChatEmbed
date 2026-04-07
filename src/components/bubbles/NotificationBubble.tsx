@@ -54,9 +54,7 @@ export const NotificationBubble: Component<Props> = (props) => {
         >
           {props.notification.title}
         </span>
-        <span style={{ color: '#555', 'font-size': '10px', 'margin-left': 'auto' }}>
-          {formatTimeAgo(props.notification.created_at)}
-        </span>
+        <span style={{ color: '#555', 'font-size': '10px', 'margin-left': 'auto' }}>{formatTimeAgo(props.notification.created_at)}</span>
       </div>
       <p style={{ color: '#ccc', 'font-size': '12px', margin: '0' }}>{props.notification.message}</p>
     </div>

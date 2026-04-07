@@ -85,7 +85,15 @@ type FilePreview = {
   type: string;
 };
 
-type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage' | 'notification' | 'notificationSummary';
+type messageType =
+  | 'apiMessage'
+  | 'userMessage'
+  | 'usermessagewaiting'
+  | 'leadCaptureMessage'
+  | 'cardMessage'
+  | 'toolCallMessage'
+  | 'notification'
+  | 'notificationSummary';
 type ExecutionState = 'INPROGRESS' | 'FINISHED' | 'ERROR' | 'TERMINATED' | 'TIMEOUT' | 'STOPPED';
 
 export type IAgentReasoning = {
@@ -204,7 +212,7 @@ export type BotProps = {
   notifications?: () => Notification[];
   unreadCount?: number;
   setUnreadCount?: (fn: (prev: number) => number) => void;
-  registerStreamHandler?: (handler: (event: StreamEvent) => void) => (() => void);
+  registerStreamHandler?: (handler: (event: StreamEvent) => void) => () => void;
 };
 
 export type LeadsConfig = {
@@ -867,11 +875,14 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         break;
       case 'notification': {
         const notif = event as unknown as Notification;
-        setMessages((prev) => [...prev, {
-          message: '',
-          type: 'notification',
-          notification: notif,
-        } as any]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            message: '',
+            type: 'notification',
+            notification: notif,
+          } as any,
+        ]);
         // Auto-mark read
         const apiHost = props.apiHost ?? '';
         const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
@@ -915,7 +926,6 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           observeMessages(messages());
         });
     }
-
   });
 
   // Notification injection — waits for both history load AND notification fetch
@@ -927,10 +937,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     if (notificationsInjected || notifs.length === 0) return;
     notificationsInjected = true;
 
-    setMessages((prev) => [
-      ...prev,
-      { message: '', type: 'notificationSummary', notifications: notifs } as any,
-    ]);
+    setMessages((prev) => [...prev, { message: '', type: 'notificationSummary', notifications: notifs } as any]);
     const apiHost = props.apiHost ?? '';
     const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
     const ids = notifs.map((n) => n.notification_id);
