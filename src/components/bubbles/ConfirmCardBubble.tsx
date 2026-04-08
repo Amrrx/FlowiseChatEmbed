@@ -67,9 +67,7 @@ export const ConfirmCardBubble = (props: Props) => {
 
   return (
     <div
-      class={`rounded-lg border overflow-hidden max-w-[320px] transition-opacity ${containerBorderClass()} ${
-        submitted() ? 'opacity-75' : ''
-      }`}
+      class={`rounded-lg border overflow-hidden max-w-[320px] transition-opacity ${containerBorderClass()} ${submitted() ? 'opacity-75' : ''}`}
       style={{
         'background-color': props.backgroundColor ?? '#f7f8ff',
         color: props.textColor ?? '#303235',
