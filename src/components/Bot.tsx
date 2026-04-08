@@ -44,6 +44,7 @@ import { extractCommands } from '@/bridge/commandExtractor';
 import { parseAGUIEvent } from '@/agui';
 import type { CardData, CardAction, CardInteraction, SelectionOption, TaskLockData, ToolCallData } from '@/agui/types';
 import type { StreamEvent } from '@/agui/stream';
+import { ConfirmCardBubble } from './bubbles/ConfirmCardBubble';
 import { EntityCardBubble } from './bubbles/EntityCardBubble';
 import { SelectionCardBubble } from './bubbles/SelectionCardBubble';
 import { ProgressCardBubble } from './bubbles/ProgressCardBubble';
@@ -890,6 +891,27 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         props.setUnreadCount?.((c: number) => Math.max(0, c - 1));
         break;
       }
+      case 'confirm_card': {
+        const rawActions = (event.actions ?? []) as Array<Record<string, any>>;
+        const confirmCard: CardData = {
+          card_id: event.wait_id,
+          type_id: 'confirm',
+          data: {
+            title: event.title,
+            message: event.message,
+            danger: event.danger,
+            wait_id: event.wait_id,
+          },
+          actions: rawActions.map((a) => ({
+            action_id: a.action_id ?? a.id,
+            label: a.label,
+            style: (a.action_id ?? a.id) === 'approve' ? 'primary' : 'secondary',
+            payload_fields: a.payload_fields ?? [],
+          })),
+        };
+        addCardMessage(confirmCard);
+        break;
+      }
       default:
         console.log('[STREAM] Event:', event);
     }
@@ -1050,18 +1072,23 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       const allMessages = [...cloneDeep(prevMessages)];
       const cardMsg = { message: '', type: 'cardMessage' as messageType, card, dateTime: new Date().toISOString() };
 
-      // Insert card before the current streaming apiMessage so it renders above text
+      // Remove pending tool call bubbles when an entity/progress card arrives —
+      // those cards CONTAIN the tool result, so the transient bubble is redundant.
+      // For confirm cards, KEEP the tool call bubble: it serves as the persistent
+      // history marker that transitions from spinner → completed/cancelled,
+      // matching the Claude Code "tool call: <name>" pattern.
+      if (card.type_id === 'entity' || card.type_id === 'progress') {
+        const tcIdx = allMessages.findIndex((m) => m.type === 'toolCallMessage');
+        if (tcIdx >= 0) allMessages.splice(tcIdx, 1);
+      }
+
+      // Insert card before the current streaming apiMessage so the empty
+      // apiMessage stays last and LoadingBubble can render on it.
       const lastIdx = allMessages.length - 1;
       if (lastIdx >= 0 && allMessages[lastIdx].type === 'apiMessage') {
         allMessages.splice(lastIdx, 0, cardMsg);
       } else {
         allMessages.push(cardMsg);
-      }
-
-      // Remove tool call bubble when a card appears (card replaces it visually)
-      if (card.type_id === 'entity' || card.type_id === 'progress') {
-        const tcIdx = allMessages.findIndex((m) => m.type === 'toolCallMessage');
-        if (tcIdx >= 0) allMessages.splice(tcIdx, 1);
       }
 
       addChatMessage(allMessages);
@@ -1478,7 +1505,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
               all[msgIdx] = {
                 ...all[msgIdx],
-                toolCalls: all[msgIdx].toolCalls!.map((tc) => (tc.toolCallId === action.toolCallId ? { ...tc, status: 'completed' as const } : tc)),
+                // Don't overwrite a 'cancelled' status — that was set by the user
+                // clicking Cancel on a HITL card and must persist as history.
+                toolCalls: all[msgIdx].toolCalls!.map((tc) =>
+                  tc.toolCallId === action.toolCallId && tc.status !== 'cancelled' ? { ...tc, status: 'completed' as const } : tc,
+                ),
               };
               return all;
             });
@@ -1631,8 +1662,12 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   };
 
   const sendCardInteraction = async (interaction: CardInteraction) => {
-    setLoading(true);
-    scrollToBottom();
+    const isHitlResolve = !!interaction.wait_id;
+
+    if (!isHitlResolve) {
+      setLoading(true);
+      scrollToBottom();
+    }
 
     const body: any = {
       question: '',
@@ -1641,8 +1676,33 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         card_id: interaction.card_id,
         action_id: interaction.action_id,
         payload: interaction.payload,
+        ...(interaction.wait_id && { wait_id: interaction.wait_id }),
       },
     };
+
+    if (isHitlResolve) {
+      // Bypass the AG-UI stream parser for HITL resolves.
+      // The server short-circuits with a plain JSON 200 (not an SSE stream),
+      // and the LLM response is delivered via the ORIGINAL /chat request that
+      // is still pending. Touching loading state here would clobber the
+      // original request's loading flag, causing the LoadingBubble to vanish
+      // during the post-approve wait.
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (props.agentId) headers['X-Agent-ID'] = props.agentId;
+      const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
+      if (vars.userId) headers['X-User-ID'] = vars.userId;
+      if (vars.userToken) headers['X-User-Token'] = vars.userToken;
+      try {
+        await fetch(predictionUrl(), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+      } catch (err) {
+        console.error('HITL card resolve failed', err);
+      }
+      return;
+    }
 
     await fetchResponseFromAGUIStream(endpointId(), body);
   };
@@ -3281,6 +3341,56 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                             textColor={props.botMessage?.textColor}
                             fontSize={props.fontSize}
                             onAction={handleCardAction}
+                          />
+                        </div>
+                      )}
+                      {message.type === 'cardMessage' && message.card?.type_id === 'confirm' && (
+                        <div class="flex justify-center mb-2">
+                          <ConfirmCardBubble
+                            card={message.card}
+                            backgroundColor={props.botMessage?.backgroundColor}
+                            textColor={props.botMessage?.textColor}
+                            fontSize={props.fontSize}
+                            onAction={(actionId, waitId) => {
+                              // Persist resolution into card.data so it survives
+                              // cloneDeep-induced remounts during LLM streaming.
+                              // On Cancel, also mark the active tool call as
+                              // 'cancelled' so the persistent ToolCallBubble
+                              // marker reflects the user's choice immediately.
+                              const targetCardId = message.card!.card_id;
+                              setMessages((prev) => {
+                                const updated = [...cloneDeep(prev)];
+                                for (const msg of updated) {
+                                  if (msg.card?.card_id === targetCardId) {
+                                    (msg.card.data as any).submitted_action = actionId;
+                                    break;
+                                  }
+                                }
+                                if (actionId === 'cancel') {
+                                  for (const msg of updated) {
+                                    if (msg.type === 'toolCallMessage' && msg.toolCalls) {
+                                      let mutated = false;
+                                      msg.toolCalls = msg.toolCalls.map((tc) => {
+                                        if (!mutated && tc.status === 'calling') {
+                                          mutated = true;
+                                          return { ...tc, status: 'cancelled' as const };
+                                        }
+                                        return tc;
+                                      });
+                                      if (mutated) break;
+                                    }
+                                  }
+                                }
+                                addChatMessage(updated);
+                                return updated;
+                              });
+                              sendCardInteraction({
+                                card_id: targetCardId,
+                                action_id: actionId,
+                                payload: {},
+                                wait_id: waitId,
+                              });
+                            }}
                           />
                         </div>
                       )}

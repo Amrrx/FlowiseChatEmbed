@@ -28,7 +28,7 @@ export type CardAction = {
 
 export type CardData = {
   card_id: string;
-  type_id: 'entity' | 'selection' | 'progress';
+  type_id: 'entity' | 'selection' | 'progress' | 'confirm';
   data: Record<string, any>;
   actions: CardAction[];
 };
@@ -60,6 +60,7 @@ export type CardInteraction = {
   card_id: string;
   action_id: string;
   payload: Record<string, any>;
+  wait_id?: string;
 };
 
 export type AGUIAction =
@@ -91,5 +92,5 @@ export type ToolCallData = {
   toolCallId: string;
   toolName: string;
   args: string;
-  status: 'calling' | 'completed';
+  status: 'calling' | 'completed' | 'cancelled';
 };
