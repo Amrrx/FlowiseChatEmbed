@@ -60,13 +60,13 @@ export const parseAGUIEvent = (raw: string): AGUIAction | null => {
       return { type: 'step_finished', stepName: event.stepName ?? '' };
 
     case 'TOOL_CALL_START':
-      return { type: 'tool_call_start', toolCallId: event.tool_call_id ?? '', toolName: event.tool_call_name ?? '' };
+      return { type: 'tool_call_start', toolCallId: event.toolCallId ?? '', toolName: event.toolCallName ?? '' };
 
     case 'TOOL_CALL_ARGS':
-      return { type: 'tool_call_args', toolCallId: event.tool_call_id ?? '', delta: event.delta ?? '' };
+      return { type: 'tool_call_args', toolCallId: event.toolCallId ?? '', delta: event.delta ?? '' };
 
     case 'TOOL_CALL_END':
-      return { type: 'tool_call_end', toolCallId: event.tool_call_id ?? '' };
+      return { type: 'tool_call_end', toolCallId: event.toolCallId ?? '' };
 
     case 'ACTIVITY_SNAPSHOT':
       return { type: 'activity', content: event.content ?? '' };
