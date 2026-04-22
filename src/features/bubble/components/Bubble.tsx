@@ -32,6 +32,7 @@ export const Bubble = (props: BubbleProps) => {
   const openBot = () => {
     if (!isBotStarted()) setIsBotStarted(true);
     setIsBotOpened(true);
+    setUnreadCount(0);
   };
 
   const closeBot = () => {
@@ -82,6 +83,8 @@ export const Bubble = (props: BubbleProps) => {
       onEvent: (event: StreamEvent) => {
         if (event.type === 'notification') {
           setNotifications((prev) => [event as unknown as Notification, ...prev]);
+          setUnreadCount((c) => c + 1);
+        } else if (event.type === 'bot_message' && !isBotOpened()) {
           setUnreadCount((c) => c + 1);
         }
         for (const handler of streamEventHandlers()) {
