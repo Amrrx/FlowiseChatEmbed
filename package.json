@@ -1,6 +1,6 @@
 {
   "name": "flowise-embed",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "description": "Javascript library to display flowise chatbot on your website",
   "type": "module",
   "main": "dist/index.js",
@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@babel/preset-typescript": "7.21.4",
+    "@playwright/test": "^1.59.1",
     "@rollup/plugin-babel": "6.0.3",
     "@rollup/plugin-commonjs": "^25.0.0",
     "@rollup/plugin-json": "^6.1.0",

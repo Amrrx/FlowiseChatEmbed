@@ -1,4 +1,4 @@
-import { Component, For } from 'solid-js';
+import { Component, For, createSignal } from 'solid-js';
 import type { Notification } from '@/api/notifications';
 
 const LEVEL_BADGE: Record<string, { bg: string; color: string }> = {
@@ -36,6 +36,19 @@ type Props = {
 };
 
 export const NotificationSummaryCard: Component<Props> = (props) => {
+  const [expandedIds, setExpandedIds] = createSignal<Set<string>>(new Set());
+
+  const toggle = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const isExpanded = (id: string) => expandedIds().has(id);
+
   const levelCounts = () => {
     const counts: Record<string, number> = {};
     for (const n of props.notifications) {
@@ -92,12 +105,18 @@ export const NotificationSummaryCard: Component<Props> = (props) => {
         <For each={props.notifications}>
           {(n) => (
             <div
+              onClick={() => toggle(n.notification_id)}
               style={{
                 display: 'flex',
-                'align-items': 'center',
+                'align-items': isExpanded(n.notification_id) ? 'flex-start' : 'center',
                 gap: '8px',
-                padding: '5px 0',
+                padding: '6px 4px',
+                'border-radius': '6px',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
               }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = '#f1f5f9')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
             >
               <div
                 style={{
@@ -106,6 +125,7 @@ export const NotificationSummaryCard: Component<Props> = (props) => {
                   'border-radius': '50%',
                   background: LEVEL_DOT[n.level] ?? LEVEL_DOT.info,
                   'flex-shrink': '0',
+                  'margin-top': isExpanded(n.notification_id) ? '6px' : '0',
                 }}
               />
               <span
@@ -114,8 +134,8 @@ export const NotificationSummaryCard: Component<Props> = (props) => {
                   'font-size': '12px',
                   flex: '1',
                   overflow: 'hidden',
-                  'text-overflow': 'ellipsis',
-                  'white-space': 'nowrap',
+                  'text-overflow': isExpanded(n.notification_id) ? 'clip' : 'ellipsis',
+                  'white-space': isExpanded(n.notification_id) ? 'normal' : 'nowrap',
                   'line-height': '1.4',
                 }}
               >
@@ -129,6 +149,7 @@ export const NotificationSummaryCard: Component<Props> = (props) => {
                   'font-size': '10px',
                   'flex-shrink': '0',
                   'white-space': 'nowrap',
+                  'margin-top': isExpanded(n.notification_id) ? '2px' : '0',
                 }}
               >
                 {formatTimeAgo(n.created_at)}

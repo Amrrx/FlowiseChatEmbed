@@ -1,5 +1,4 @@
 import { createSignal, createEffect, For, onMount, Show, mergeProps, on, createMemo, onCleanup } from 'solid-js';
-import { v4 as uuidv4 } from 'uuid';
 import {
   sendMessageQuery,
   upsertVectorStoreWithFormData,
@@ -35,6 +34,7 @@ import { CancelButton } from './buttons/CancelButton';
 import { cancelAudioRecording, startAudioRecording, stopAudioRecording } from '@/utils/audioRecording';
 import { LeadCaptureBubble } from '@/components/bubbles/LeadCaptureBubble';
 import { removeLocalStorageChatHistory, getLocalStorageChatflow, setLocalStorageChatflow, setCookie, getCookie } from '@/utils';
+import { getOrCreateSessionId } from '@/session/chatSession';
 import { cloneDeep } from 'lodash';
 import { FollowUpPromptBubble } from '@/components/bubbles/FollowUpPromptBubble';
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
@@ -44,6 +44,7 @@ import { extractCommands } from '@/bridge/commandExtractor';
 import { parseAGUIEvent } from '@/agui';
 import type { CardData, CardAction, CardInteraction, SelectionOption, TaskLockData, ToolCallData } from '@/agui/types';
 import type { StreamEvent } from '@/agui/stream';
+import { useAgUiStream } from '@/agui/useAgUiStream';
 import { ConfirmCardBubble } from './bubbles/ConfirmCardBubble';
 import { EntityCardBubble } from './bubbles/EntityCardBubble';
 import { SelectionCardBubble } from './bubbles/SelectionCardBubble';
@@ -211,9 +212,11 @@ export type BotProps = {
   closeBot?: () => void;
   streamConnected?: boolean;
   notifications?: () => Notification[];
+  initialUnread?: () => Notification[];
   unreadCount?: number;
   setUnreadCount?: (fn: (prev: number) => number) => void;
   registerStreamHandler?: (handler: (event: StreamEvent) => void) => () => void;
+  refreshUnread?: () => Promise<void>;
 };
 
 export type LeadsConfig = {
@@ -706,8 +709,11 @@ const FormInputView = (props: {
 };
 
 const replaceMessageVariables = (message: string, sessionId: string): string => {
+  // {sessionId} is the canonical template placeholder for the conversation identifier.
+  // {chatId} kept as a legacy alias resolving to the same value.
   const variables: Record<string, string> = {
     '{sessionId}': sessionId,
+    '{chatId}': sessionId,
     '{timestamp}': Date.now().toString(),
     '{currentPage}': window.location.href,
     '{currentPath}': window.location.pathname,
@@ -729,6 +735,27 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const endpointId = () => props.agentId ?? props.chatflowid;
   const endpointPath = () => props.apiPath ?? '/api/v1/prediction';
   const predictionUrl = () => `${props.apiHost}${endpointPath()}/${endpointId()}`;
+
+  // Stream ownership seam: if the host (e.g. Bubble) already wired the persistent
+  // /stream connection, use what it provided. Otherwise (Full, Popup, etc.) own
+  // the connection here so HITL cards + notifications work in every mode.
+  const stream = props.registerStreamHandler
+    ? {
+        streamConnected: () => !!props.streamConnected,
+        notifications: () => props.notifications?.() ?? [],
+        initialUnread: () => props.initialUnread?.() ?? [],
+        unreadCount: () => props.unreadCount ?? 0,
+        setUnreadCount: (fn: (prev: number) => number) => props.setUnreadCount?.(fn),
+        registerStreamHandler: props.registerStreamHandler,
+        refreshUnread: () => props.refreshUnread?.() ?? Promise.resolve(),
+      }
+    : useAgUiStream({
+        apiHost: props.apiHost,
+        agentId: props.agentId,
+        chatflowid: props.chatflowid,
+        protocol: props.protocol,
+        chatflowConfig: props.chatflowConfig,
+      });
 
   let chatContainer: HTMLDivElement | undefined;
   let bottomSpacer: HTMLDivElement | undefined;
@@ -875,6 +902,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         setMessages((prev) => [...prev, { message: event.text ?? '', type: 'apiMessage' }]);
         break;
       case 'notification': {
+        // Only reached when the panel is visible — useAgUiStream filters hidden
+        // events before fan-out. Render as live bubble + mark read.
         const notif = event as unknown as Notification;
         setMessages((prev) => [
           ...prev,
@@ -884,11 +913,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             notification: notif,
           } as any,
         ]);
-        // Auto-mark read
         const apiHost = props.apiHost ?? '';
         const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
         markNotificationsRead(apiHost, vars.userId ?? '', [notif.notification_id]).catch(/* no-op */ Function.prototype as () => void);
-        props.setUnreadCount?.((c: number) => Math.max(0, c - 1));
         break;
       }
       case 'confirm_card': {
@@ -917,16 +944,20 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     }
   };
 
-  // Register stream event handler with Bubble's connection
   createEffect(() => {
-    if (!props.registerStreamHandler) return;
-    const unregister = props.registerStreamHandler(handleStreamEvent);
+    const unregister = stream.registerStreamHandler(handleStreamEvent);
+    // Refresh the unread snapshot each time Bot mounts — notifications that
+    // arrived while the chat panel was closed were captured in useAgUiStream's
+    // live signal but never rendered (handleStreamEvent wasn't registered).
+    // Path A reads stream.initialUnread(), so we need that signal re-hydrated
+    // from the server here for the summary card to reflect "what you missed".
+    void stream.refreshUnread();
     onCleanup(unregister);
   });
 
   createMemo(() => {
     const customerId = (props.chatflowConfig?.vars as any)?.customerId;
-    setChatId(customerId ? `${customerId.toString()}+${uuidv4()}` : uuidv4());
+    setChatId(getOrCreateSessionId(props.chatflowid, customerId?.toString()));
   });
 
   onMount(() => {
@@ -950,21 +981,26 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     }
   });
 
-  // Notification injection — waits for both history load AND notification fetch
+  // Notification injection (Path A — "while you were away"). Runs whenever
+  // initialUnread changes (SSE connect + every panel re-open via refreshUnread).
+  // Tracks per-notification_id to avoid duplicating items already rendered in
+  // a prior summary — so re-opens only show items that arrived while closed.
   const [historyLoaded, setHistoryLoaded] = createSignal(false);
-  let notificationsInjected = false;
+  const renderedNotificationIds = new Set<string>();
   createEffect(() => {
     if (!historyLoaded()) return;
-    const notifs = props.notifications?.() ?? [];
-    if (notificationsInjected || notifs.length === 0) return;
-    notificationsInjected = true;
+    const notifs = stream.initialUnread();
+    const newNotifs = notifs.filter((n) => !renderedNotificationIds.has(n.notification_id));
+    if (newNotifs.length === 0) return;
 
-    setMessages((prev) => [...prev, { message: '', type: 'notificationSummary', notifications: notifs } as any]);
+    newNotifs.forEach((n) => renderedNotificationIds.add(n.notification_id));
+
+    setMessages((prev) => [...prev, { message: '', type: 'notificationSummary', notifications: newNotifs } as any]);
     const apiHost = props.apiHost ?? '';
     const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
-    const ids = notifs.map((n) => n.notification_id);
+    const ids = newNotifs.map((n) => n.notification_id);
     markNotificationsRead(apiHost, vars.userId ?? '', ids).catch(/* no-op */ Function.prototype as () => void);
-    props.setUnreadCount?.(() => 0);
+    stream.setUnreadCount(() => 0);
 
     setTimeout(() => {
       chatContainer?.scrollTo(0, chatContainer.scrollHeight);
@@ -1929,9 +1965,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const clearChat = () => {
     try {
       removeLocalStorageChatHistory(props.chatflowid);
-      setChatId(
-        (props.chatflowConfig?.vars as any)?.customerId ? `${(props.chatflowConfig?.vars as any).customerId.toString()}+${uuidv4()}` : uuidv4(),
-      );
+      setChatId(getOrCreateSessionId(props.chatflowid, (props.chatflowConfig?.vars as any)?.customerId?.toString()));
       setUploadedFiles([]);
       const messages: MessageType[] =
         props.showWelcomeMessage ?? true
@@ -2043,8 +2077,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
       const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage');
       setMessages([...filteredMessages]);
-      setHistoryLoaded(true);
     }
+    setHistoryLoaded(true);
 
     // Determine if particular chatflow is available for streaming
     const { data } = await isStreamAvailableQuery({
@@ -3219,11 +3253,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                     width: '8px',
                     height: '8px',
                     'border-radius': '50%',
-                    'background-color': props.streamConnected ? '#22c55e' : '#94a3b8',
+                    'background-color': stream.streamConnected() ? '#22c55e' : '#94a3b8',
                     transition: 'background-color 0.3s ease',
                     'flex-shrink': '0',
                   }}
-                  title={props.streamConnected ? 'Connected' : 'Disconnected'}
+                  title={stream.streamConnected() ? 'Connected' : 'Disconnected'}
                 />
               </Show>
               <div style={{ flex: 1 }} />

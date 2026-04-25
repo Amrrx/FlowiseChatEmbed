@@ -1,13 +1,11 @@
-import { createSignal, Show, splitProps, onCleanup, createEffect, onMount } from 'solid-js';
+import { createSignal, Show, splitProps, onCleanup, createEffect } from 'solid-js';
 import styles from '../../../assets/index.css';
 import { BubbleButton } from './BubbleButton';
 import { BubbleParams } from '../types';
 import { Bot, BotProps } from '../../../components/Bot';
 import Tooltip from './Tooltip';
 import { getBubbleButtonSize } from '@/utils';
-import { connectStream, disconnectStream } from '@/agui/stream';
-import type { StreamEvent } from '@/agui/stream';
-import { fetchUnreadNotifications, type Notification } from '@/api/notifications';
+import { useAgUiStream } from '@/agui/useAgUiStream';
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
@@ -24,15 +22,23 @@ export const Bubble = (props: BubbleProps) => {
     right: bubbleProps.theme?.button?.right ?? 20,
   });
 
-  const [streamConnected, setStreamConnected] = createSignal(false);
-  const [notifications, setNotifications] = createSignal<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = createSignal(0);
-  const [streamEventHandlers, setStreamEventHandlers] = createSignal<Array<(event: StreamEvent) => void>>([]);
+  const { streamConnected, notifications, initialUnread, unreadCount, setUnreadCount, registerStreamHandler, refreshUnread } = useAgUiStream({
+    apiHost: props.apiHost,
+    agentId: props.agentId,
+    chatflowid: props.chatflowid,
+    protocol: props.protocol,
+    chatflowConfig: props.chatflowConfig,
+    isBotVisible: isBotOpened,
+  });
 
   const openBot = () => {
     if (!isBotStarted()) setIsBotStarted(true);
     setIsBotOpened(true);
     setUnreadCount(0);
+    // Surface anything that arrived while the panel was closed via Path A.
+    // Bot stays mounted across open/close, so its internal refresh effect
+    // doesn't re-run — call it from here.
+    void refreshUnread();
   };
 
   const closeBot = () => {
@@ -62,55 +68,6 @@ export const Bubble = (props: BubbleProps) => {
       document.head.removeChild(meta);
     };
   });
-
-  // Connect to /stream at page load for notifications + real-time events
-  onMount(() => {
-    if (props.protocol !== 'ag-ui') return;
-
-    const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
-    if (!vars.userId || !props.agentId) return;
-
-    const chatId = vars.customerId
-      ? `${vars.customerId}+${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
-      : crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
-
-    connectStream({
-      apiHost: props.apiHost ?? '',
-      agentId: props.agentId,
-      userId: vars.userId,
-      userToken: vars.userToken ?? '',
-      chatId,
-      onEvent: (event: StreamEvent) => {
-        if (event.type === 'notification') {
-          setNotifications((prev) => [event as unknown as Notification, ...prev]);
-          setUnreadCount((c) => c + 1);
-        } else if (event.type === 'bot_message' && !isBotOpened()) {
-          setUnreadCount((c) => c + 1);
-        }
-        for (const handler of streamEventHandlers()) {
-          handler(event);
-        }
-      },
-      onConnect: () => {
-        setStreamConnected(true);
-        const apiHost = props.apiHost ?? '';
-        fetchUnreadNotifications(apiHost, vars.userId)
-          .then((res) => {
-            setNotifications(res.notifications);
-            setUnreadCount(res.unread_count);
-          })
-          .catch((err) => console.warn('[Notifications] Fetch failed:', err));
-      },
-      onDisconnect: () => setStreamConnected(false),
-    });
-  });
-
-  onCleanup(() => disconnectStream());
-
-  const registerStreamHandler = (handler: (event: StreamEvent) => void) => {
-    setStreamEventHandlers((prev) => [...prev, handler]);
-    return () => setStreamEventHandlers((prev) => prev.filter((h) => h !== handler));
-  };
 
   const showTooltip = bubbleProps.theme?.tooltip?.showTooltip ?? false;
 
@@ -225,9 +182,11 @@ export const Bubble = (props: BubbleProps) => {
               closeBot={closeBot}
               streamConnected={streamConnected()}
               notifications={notifications}
+              initialUnread={initialUnread}
               unreadCount={unreadCount()}
               setUnreadCount={setUnreadCount}
               registerStreamHandler={registerStreamHandler}
+              refreshUnread={refreshUnread}
             />
           </div>
         </Show>

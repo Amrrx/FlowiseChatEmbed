@@ -134,9 +134,11 @@ export type BotProps = {
     closeBot?: () => void;
     streamConnected?: boolean;
     notifications?: () => Notification[];
+    initialUnread?: () => Notification[];
     unreadCount?: number;
     setUnreadCount?: (fn: (prev: number) => number) => void;
     registerStreamHandler?: (handler: (event: StreamEvent) => void) => () => void;
+    refreshUnread?: () => Promise<void>;
 };
 export type LeadsConfig = {
     status: boolean;

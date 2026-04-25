@@ -15,7 +15,7 @@ export type StreamOptions = {
   agentId: string;
   userId: string;
   userToken: string;
-  chatId: string;
+  sessionId: string;
   onEvent: (event: StreamEvent) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
@@ -35,7 +35,7 @@ export function connectStream(options: StreamOptions): void {
     'X-Agent-ID': options.agentId,
     'X-User-ID': options.userId,
     'X-User-Token': options.userToken,
-    'X-Chat-ID': options.chatId,
+    'X-Session-ID': options.sessionId,
   };
 
   fetchEventSource(`${options.apiHost}/stream`, {
