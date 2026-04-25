@@ -62,8 +62,7 @@ function liveEvent(id: string) {
   };
 }
 
-const badgeLocator = (page: Page) =>
-  page.locator('flowise-chatbot').locator('button[part="button"] > div').filter({ hasText: /^\d+$/ });
+const badgeLocator = (page: Page) => page.locator('flowise-chatbot').locator('button[part="button"] > div').filter({ hasText: /^\d+$/ });
 
 /**
  * Known limitation: with the current useAgUiStream merge strategy

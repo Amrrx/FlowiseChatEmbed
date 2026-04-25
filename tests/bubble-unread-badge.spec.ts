@@ -37,10 +37,7 @@ async function mockStreamOnce(page: Page, events: unknown[]) {
 
 function badgeLocator(page: Page) {
   // The badge is the button's direct child <div> whose text is a digit.
-  return page
-    .locator('flowise-chatbot')
-    .locator('button[part="button"] > div')
-    .filter({ hasText: /^\d+$/ });
+  return page.locator('flowise-chatbot').locator('button[part="button"] > div').filter({ hasText: /^\d+$/ });
 }
 
 test('#2 Bubble unread badge increments on bot_message with bot closed', async ({ page }) => {

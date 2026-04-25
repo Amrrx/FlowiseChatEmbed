@@ -70,7 +70,8 @@ function textSpanFor(page: Page, title: string) {
     .first();
 }
 
-const LONG = 'This is a deliberately long notification message that must exceed the visible width of the row to trigger CSS ellipsis truncation in the collapsed state of the summary card row.';
+const LONG =
+  'This is a deliberately long notification message that must exceed the visible width of the row to trigger CSS ellipsis truncation in the collapsed state of the summary card row.';
 
 async function setupSummary(page: Page, notifications: unknown[]) {
   await stubNotifications(page, notifications);
@@ -81,21 +82,13 @@ async function setupSummary(page: Page, notifications: unknown[]) {
 
 // The clickable row: div with cursor: pointer that contains the title.
 function clickableRow(page: Page, title: string) {
-  return page
-    .locator('flowise-fullchatbot')
-    .locator('div[style*="cursor: pointer"]')
-    .filter({ hasText: title });
+  return page.locator('flowise-fullchatbot').locator('div[style*="cursor: pointer"]').filter({ hasText: title });
 }
 
 test('#19 Row renders collapsed with nowrap + ellipsis by default', async ({ page }) => {
   await setupSummary(page, [makeNotif('n1', 'Long Title', LONG)]);
 
-  const span = page
-    .locator('flowise-fullchatbot')
-    .locator('span')
-    .filter({ hasText: 'Long Title' })
-    .filter({ hasText: LONG })
-    .first();
+  const span = page.locator('flowise-fullchatbot').locator('span').filter({ hasText: 'Long Title' }).filter({ hasText: LONG }).first();
 
   const style = await span.getAttribute('style');
   expect(style).toMatch(/white-space:\s*nowrap/);
@@ -107,12 +100,7 @@ test('#20 Clicking a row expands it (switches to normal wrap)', async ({ page })
 
   await clickableRow(page, 'Click Me').click();
 
-  const span = page
-    .locator('flowise-fullchatbot')
-    .locator('span')
-    .filter({ hasText: 'Click Me' })
-    .filter({ hasText: LONG })
-    .first();
+  const span = page.locator('flowise-fullchatbot').locator('span').filter({ hasText: 'Click Me' }).filter({ hasText: LONG }).first();
 
   const style = await span.getAttribute('style');
   expect(style).toMatch(/white-space:\s*normal/);
@@ -126,34 +114,20 @@ test('#21 Clicking an expanded row collapses it back', async ({ page }) => {
   await row.click(); // expand
   await row.click(); // collapse
 
-  const span = page
-    .locator('flowise-fullchatbot')
-    .locator('span')
-    .filter({ hasText: 'Toggle Row' })
-    .filter({ hasText: LONG })
-    .first();
+  const span = page.locator('flowise-fullchatbot').locator('span').filter({ hasText: 'Toggle Row' }).filter({ hasText: LONG }).first();
 
   const style = await span.getAttribute('style');
   expect(style).toMatch(/white-space:\s*nowrap/);
 });
 
 test('#22 Rows expand independently', async ({ page }) => {
-  await setupSummary(page, [
-    makeNotif('n1', 'Row A', LONG),
-    makeNotif('n2', 'Row B', LONG),
-    makeNotif('n3', 'Row C', LONG),
-  ]);
+  await setupSummary(page, [makeNotif('n1', 'Row A', LONG), makeNotif('n2', 'Row B', LONG), makeNotif('n3', 'Row C', LONG)]);
 
   await clickableRow(page, 'Row A').click();
   await clickableRow(page, 'Row C').click();
 
   const getStyle = async (title: string) => {
-    const span = page
-      .locator('flowise-fullchatbot')
-      .locator('span')
-      .filter({ hasText: title })
-      .filter({ hasText: LONG })
-      .first();
+    const span = page.locator('flowise-fullchatbot').locator('span').filter({ hasText: title }).filter({ hasText: LONG }).first();
     return await span.getAttribute('style');
   };
 
@@ -168,13 +142,9 @@ test('#23 Hovering a row highlights it, leaving resets the background', async ({
   const row = clickableRow(page, 'Hover Me');
 
   await row.hover();
-  await expect
-    .poll(async () => await row.getAttribute('style'), { timeout: 2_000 })
-    .toMatch(/background:\s*(#f1f5f9|rgb\(241,\s*245,\s*249\))/);
+  await expect.poll(async () => await row.getAttribute('style'), { timeout: 2_000 }).toMatch(/background:\s*(#f1f5f9|rgb\(241,\s*245,\s*249\))/);
 
   // Move away and verify the background resets.
   await page.mouse.move(0, 0);
-  await expect
-    .poll(async () => await row.getAttribute('style'), { timeout: 2_000 })
-    .toMatch(/background:\s*(transparent|rgba?\(0,\s*0,\s*0,\s*0\))/);
+  await expect.poll(async () => await row.getAttribute('style'), { timeout: 2_000 }).toMatch(/background:\s*(transparent|rgba?\(0,\s*0,\s*0,\s*0\))/);
 });

@@ -17,11 +17,9 @@ import { getLocalStorageChatflow, setLocalStorageChatflow, removeLocalStorageCha
  *   mosaad_mcp/docs/FLOWS.md § "Flow 7: Chat Identity Propagation"
  */
 
-const fallbackRandom = (): string =>
-  crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
+const fallbackRandom = (): string => crypto.randomUUID?.() ?? Math.random().toString(36).slice(2);
 
-const buildId = (customerId?: string): string =>
-  customerId ? `${customerId}+${fallbackRandom()}` : fallbackRandom();
+const buildId = (customerId?: string): string => (customerId ? `${customerId}+${fallbackRandom()}` : fallbackRandom());
 
 export function getOrCreateSessionId(chatflowid: string, customerId?: string): string {
   const saved = getLocalStorageChatflow(chatflowid);

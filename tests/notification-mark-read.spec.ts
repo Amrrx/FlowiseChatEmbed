@@ -102,10 +102,7 @@ test('#26 unreadCount drops to 0 after summary injection', async ({ page }) => {
 
   await page.goto('/index.html');
 
-  const badge = page
-    .locator('flowise-chatbot')
-    .locator('button[part="button"] > div')
-    .filter({ hasText: /^\d+$/ });
+  const badge = page.locator('flowise-chatbot').locator('button[part="button"] > div').filter({ hasText: /^\d+$/ });
   await expect(badge).toHaveText('2', { timeout: 10_000 });
 
   // Open bubble — summary injects, stream.setUnreadCount(() => 0) fires after historyLoaded.
