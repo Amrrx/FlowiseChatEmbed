@@ -217,6 +217,8 @@ export type BotProps = {
   setUnreadCount?: (fn: (prev: number) => number) => void;
   registerStreamHandler?: (handler: (event: StreamEvent) => void) => () => void;
   refreshUnread?: () => Promise<void>;
+  pendingBotMessages?: () => StreamEvent[];
+  consumePendingBotMessages?: () => StreamEvent[];
 };
 
 export type LeadsConfig = {
@@ -748,6 +750,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         setUnreadCount: (fn: (prev: number) => number) => props.setUnreadCount?.(fn),
         registerStreamHandler: props.registerStreamHandler,
         refreshUnread: () => props.refreshUnread?.() ?? Promise.resolve(),
+        pendingBotMessages: () => props.pendingBotMessages?.() ?? [],
+        consumePendingBotMessages: () => props.consumePendingBotMessages?.() ?? [],
       }
     : useAgUiStream({
         apiHost: props.apiHost,
@@ -1007,6 +1011,21 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     }, 50);
   });
 
+  // Drain bot_message events that arrived while the panel was closed.
+  // useAgUiStream buffers them; appending here mirrors the live handler in
+  // handleStreamEvent (case 'bot_message').
+  createEffect(() => {
+    if (!historyLoaded()) return;
+    const pending = stream.pendingBotMessages();
+    if (pending.length === 0) return;
+    const drained = stream.consumePendingBotMessages();
+    if (drained.length === 0) return;
+    setMessages((prev) => [...prev, ...drained.map((event) => ({ message: event.text ?? '', type: 'apiMessage' }) as MessageType)]);
+    setTimeout(() => {
+      chatContainer?.scrollTo(0, chatContainer.scrollHeight);
+    }, 50);
+  });
+
   const scrollToBottom = () => {
     setTimeout(() => {
       chatContainer?.scrollTo(0, chatContainer.scrollHeight);
@@ -1108,14 +1127,20 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       const allMessages = [...cloneDeep(prevMessages)];
       const cardMsg = { message: '', type: 'cardMessage' as messageType, card, dateTime: new Date().toISOString() };
 
-      // Remove pending tool call bubbles when an entity/progress card arrives —
-      // those cards CONTAIN the tool result, so the transient bubble is redundant.
+      // Remove the just-completed tool call bubble when an entity/progress card arrives —
+      // the card CONTAINS the tool result, so the transient bubble is redundant.
+      // Walk from the end so we drop only the most-recent completed call, not earlier ones.
       // For confirm cards, KEEP the tool call bubble: it serves as the persistent
       // history marker that transitions from spinner → completed/cancelled,
       // matching the Claude Code "tool call: <name>" pattern.
       if (card.type_id === 'entity' || card.type_id === 'progress') {
-        const tcIdx = allMessages.findIndex((m) => m.type === 'toolCallMessage');
-        if (tcIdx >= 0) allMessages.splice(tcIdx, 1);
+        for (let i = allMessages.length - 1; i >= 0; i--) {
+          const m = allMessages[i];
+          if (m.type === 'toolCallMessage' && m.toolCalls?.[0]?.status === 'completed') {
+            allMessages.splice(i, 1);
+            break;
+          }
+        }
       }
 
       // Insert card before the current streaming apiMessage so the empty
@@ -1506,15 +1531,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             const tcData: ToolCallData = { toolCallId: action.toolCallId, toolName: action.toolName, args: '', status: 'calling' };
             setMessages((prev) => {
               const all = [...cloneDeep(prev)];
-              const existingIdx = all.findIndex((m) => m.type === 'toolCallMessage');
-              if (existingIdx >= 0) {
-                const existing = all[existingIdx].toolCalls ?? [];
-                all[existingIdx] = { ...all[existingIdx], toolCalls: [...existing, tcData] };
-                toolCallMessageIndex.set(action.toolCallId, existingIdx);
-              } else {
-                all.push({ message: '', type: 'toolCallMessage' as messageType, toolCalls: [tcData] });
-                toolCallMessageIndex.set(action.toolCallId, all.length - 1);
-              }
+              all.push({ message: '', type: 'toolCallMessage' as messageType, toolCalls: [tcData] });
+              toolCallMessageIndex.set(action.toolCallId, all.length - 1);
               return all;
             });
             break;

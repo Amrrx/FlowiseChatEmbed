@@ -22,7 +22,17 @@ export const Bubble = (props: BubbleProps) => {
     right: bubbleProps.theme?.button?.right ?? 20,
   });
 
-  const { streamConnected, notifications, initialUnread, unreadCount, setUnreadCount, registerStreamHandler, refreshUnread } = useAgUiStream({
+  const {
+    streamConnected,
+    notifications,
+    initialUnread,
+    unreadCount,
+    setUnreadCount,
+    registerStreamHandler,
+    refreshUnread,
+    pendingBotMessages,
+    consumePendingBotMessages,
+  } = useAgUiStream({
     apiHost: props.apiHost,
     agentId: props.agentId,
     chatflowid: props.chatflowid,
@@ -187,6 +197,8 @@ export const Bubble = (props: BubbleProps) => {
               setUnreadCount={setUnreadCount}
               registerStreamHandler={registerStreamHandler}
               refreshUnread={refreshUnread}
+              pendingBotMessages={pendingBotMessages}
+              consumePendingBotMessages={consumePendingBotMessages}
             />
           </div>
         </Show>

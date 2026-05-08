@@ -20,6 +20,8 @@ export type UseAgUiStreamOutput = {
   setUnreadCount: Setter<number>;
   registerStreamHandler: (handler: (event: StreamEvent) => void) => () => void;
   refreshUnread: () => Promise<void>;
+  pendingBotMessages: Accessor<StreamEvent[]>;
+  consumePendingBotMessages: () => StreamEvent[];
 };
 
 export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
@@ -27,6 +29,7 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
   const [notifications, setNotifications] = createSignal<Notification[]>([]);
   const [initialUnread, setInitialUnread] = createSignal<Notification[]>([]);
   const [unreadCount, setUnreadCount] = createSignal(0);
+  const [pendingBotMessages, setPendingBotMessages] = createSignal<StreamEvent[]>([]);
   const [streamEventHandlers, setStreamEventHandlers] = createSignal<Array<(event: StreamEvent) => void>>([]);
 
   const refreshUnread = async (): Promise<void> => {
@@ -69,7 +72,12 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
             return;
           }
         } else if (event.type === 'bot_message' && !botVisible) {
+          // Hidden: buffer for replay on next open. Skip live fan-out so Bot
+          // doesn't append a bubble the user can't see in context — matching
+          // the notification branch above.
+          setPendingBotMessages((prev) => [...prev, event]);
           setUnreadCount((c) => c + 1);
+          return;
         }
 
         for (const handler of streamEventHandlers()) {
@@ -91,6 +99,12 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
     return () => setStreamEventHandlers((prev) => prev.filter((h) => h !== handler));
   };
 
+  const consumePendingBotMessages = (): StreamEvent[] => {
+    const drained = pendingBotMessages();
+    if (drained.length > 0) setPendingBotMessages([]);
+    return drained;
+  };
+
   return {
     streamConnected,
     notifications,
@@ -99,5 +113,7 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
     setUnreadCount,
     registerStreamHandler,
     refreshUnread,
+    pendingBotMessages,
+    consumePendingBotMessages,
   };
 }

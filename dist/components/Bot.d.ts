@@ -139,6 +139,8 @@ export type BotProps = {
     setUnreadCount?: (fn: (prev: number) => number) => void;
     registerStreamHandler?: (handler: (event: StreamEvent) => void) => () => void;
     refreshUnread?: () => Promise<void>;
+    pendingBotMessages?: () => StreamEvent[];
+    consumePendingBotMessages?: () => StreamEvent[];
 };
 export type LeadsConfig = {
     status: boolean;
