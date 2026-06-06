@@ -48,6 +48,7 @@ import { useAgUiStream } from '@/agui/useAgUiStream';
 import { ConfirmCardBubble } from './bubbles/ConfirmCardBubble';
 import { EntityCardBubble } from './bubbles/EntityCardBubble';
 import { SelectionCardBubble } from './bubbles/SelectionCardBubble';
+import { BulkCardBubble } from './bubbles/BulkCardBubble';
 import { ProgressCardBubble } from './bubbles/ProgressCardBubble';
 import { ToolCallBubble } from './bubbles/ToolCallBubble';
 import { NotificationBubble } from './bubbles/NotificationBubble';
@@ -922,6 +923,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         markNotificationsRead(apiHost, vars.userId ?? '', [notif.notification_id]).catch(/* no-op */ Function.prototype as () => void);
         break;
       }
+      case 'bulk_card':
+        upsertBulkCard(event.card as CardData);
+        break;
       case 'confirm_card': {
         const rawActions = (event.actions ?? []) as Array<Record<string, any>>;
         const confirmCard: CardData = {
@@ -1152,6 +1156,30 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         allMessages.push(cardMsg);
       }
 
+      addChatMessage(allMessages);
+      return allMessages;
+    });
+  };
+
+  // Bulk cards republish with a fresh card_id on every update — match on the
+  // stable bulk_run_id and replace in place (progress → progress → summary).
+  const upsertBulkCard = (card: CardData) => {
+    setMessages((prevMessages) => {
+      const allMessages = [...cloneDeep(prevMessages)];
+      const runId = card.data?.bulk_run_id;
+      for (let i = allMessages.length - 1; i >= 0; i--) {
+        const m = allMessages[i];
+        if (
+          m.type === 'cardMessage' &&
+          (m.card?.type_id === 'bulk_progress' || m.card?.type_id === 'bulk_summary') &&
+          m.card?.data?.bulk_run_id === runId
+        ) {
+          allMessages[i] = { ...m, card };
+          addChatMessage(allMessages);
+          return allMessages;
+        }
+      }
+      allMessages.push({ message: '', type: 'cardMessage' as messageType, card, dateTime: new Date().toISOString() });
       addChatMessage(allMessages);
       return allMessages;
     });
@@ -3392,6 +3420,18 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                             backgroundColor={props.botMessage?.backgroundColor}
                             textColor={props.botMessage?.textColor}
                             fontSize={props.fontSize}
+                            onAction={handleCardAction}
+                          />
+                        </div>
+                      )}
+                      {message.type === 'cardMessage' && (message.card?.type_id === 'bulk_progress' || message.card?.type_id === 'bulk_summary') && (
+                        <div class="flex justify-center mb-2">
+                          <BulkCardBubble
+                            card={message.card}
+                            backgroundColor={props.botMessage?.backgroundColor}
+                            textColor={props.botMessage?.textColor}
+                            fontSize={props.fontSize}
+                            accentColor={props.textInput?.sendButtonColor}
                             onAction={handleCardAction}
                           />
                         </div>

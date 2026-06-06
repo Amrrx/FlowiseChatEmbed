@@ -28,7 +28,7 @@ export type CardAction = {
 
 export type CardData = {
   card_id: string;
-  type_id: 'entity' | 'selection' | 'progress' | 'confirm';
+  type_id: 'entity' | 'selection' | 'progress' | 'confirm' | 'bulk_progress' | 'bulk_summary';
   data: Record<string, any>;
   actions: CardAction[];
 };
