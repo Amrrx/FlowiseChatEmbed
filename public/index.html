@@ -28,13 +28,13 @@
 
                 // Initialize chatbot with enhanced header
                 Chatbot.init({
-                    chatflowid: "ea7b1e24-c8b0-4176-b12f-9542ff03c0af",
+                    chatflowid: "e81ae952-5d85-4b5a-a125-912a62ba575c",
                     // chatflowid: "a4bb36ce-c799-4e28-b36a-bbb2cbc9c8fc",
                     apiHost: "http://localhost:9091",
                     protocol: "ag-ui",                  // activate AG-UI mode
                     apiPath: "/chat",                   // your gateway path
                     agentId: "avl-agent",              // replaces chatflowid for routing
-
+                    streaming: true,
                     chatflowConfig: {
                         streaming: true,
                         sessionId: `session_${Date.now()}`,
@@ -42,7 +42,7 @@
                         // "sessionId": "123"
                         vars: {
                             userId: "5b5475eeec689d30c527f124",
-                            userToken: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vYXBpLmFmYXF5LnByby9hdXRoL2xvZ2luX2FzIiwiaWF0IjoxNzc4MTc2NzMxLCJleHAiOjE3ODA3Njg3MzEsIm5iZiI6MTc3ODE3NjczMSwianRpIjoiRnVlWjlHeXN0c2M4b3F0byIsInN1YiI6IjViNTQ3NWVlZWM2ODlkMzBjNTI3ZjEyNCIsInBydiI6IjI3MGVjZmM3ZWEzZWQ5MzdlYTg0OTM2MmEzYTUwOTEwYzZkOGNlNGYiLCJsb2dpbl9hc19pZCI6IjVlNjY1NWJmMDNlZDUyZTFhYjc5ZDMwMSJ9.bl9rjJOOcsiImp2F9ACNgzGUKnIrNXnjOUdO4w-JO10",
+                            userToken: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vYXBpLmFmYXF5LnByby9hdXRoL2xvZ2luX2FzIiwiaWF0IjoxNzc4OTYzOTU4LCJleHAiOjE3ODE1NTU5NTgsIm5iZiI6MTc3ODk2Mzk1OCwianRpIjoicEhseXR3S1NoSloxaUNtWSIsInN1YiI6IjViNTQ3NWVlZWM2ODlkMzBjNTI3ZjEyNCIsInBydiI6IjI3MGVjZmM3ZWEzZWQ5MzdlYTg0OTM2MmEzYTUwOTEwYzZkOGNlNGYiLCJsb2dpbl9hc19pZCI6IjVlNjY1NWJmMDNlZDUyZTFhYjc5ZDMwMSJ9.enmvcGI6qQyursjwOZOZzGrbs5c0lBYI__NlG2QMbGg",
                             context_id: "5b5475eeec689d30c527f124",
                             metadata: {}
                         }
