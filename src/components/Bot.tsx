@@ -1640,6 +1640,16 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     if (isWaitingForAutoMessage()) {
       hideAutoMessageLoader();
     }
+    // Reconcile any tool call still 'calling' once the response closes: the stream
+    // ended without its TOOL_CALL_END (e.g. the tool errored), so the spinner would
+    // otherwise spin forever. Mark it 'failed' — never overwrite a user 'cancelled'.
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.type === 'toolCallMessage' && m.toolCalls?.some((tc) => tc.status === 'calling')
+          ? { ...m, toolCalls: m.toolCalls.map((tc) => (tc.status === 'calling' ? { ...tc, status: 'failed' as const } : tc)) }
+          : m,
+      ),
+    );
     setLoading(false);
     setUserInput('');
     setUploadedFiles([]);

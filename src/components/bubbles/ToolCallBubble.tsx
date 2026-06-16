@@ -41,14 +41,14 @@ const Checkmark = () => (
   </svg>
 );
 
-const Cross = () => (
+const Cross = (props: { color?: string }) => (
   <svg
     class="shrink-0"
     width="12"
     height="12"
     viewBox="0 0 24 24"
     fill="none"
-    stroke="#9ca3af"
+    stroke={props.color ?? '#9ca3af'}
     stroke-width="2.5"
     stroke-linecap="round"
     stroke-linejoin="round"
@@ -61,15 +61,18 @@ const Cross = () => (
 export const ToolCallBubble = (props: Props) => {
   const isCalling = () => props.toolCall.status === 'calling';
   const isCancelled = () => props.toolCall.status === 'cancelled';
+  const isFailed = () => props.toolCall.status === 'failed';
   const accent = () => accentFor(props.toolCall.toolCallId);
   const lineColor = () => {
     if (isCalling()) return accent();
     if (isCancelled()) return '#d1d5db';
+    if (isFailed()) return '#fecaca';
     return '#a7f3d0';
   };
   const labelColor = () => {
     if (isCalling()) return accent();
     if (isCancelled()) return '#9ca3af';
+    if (isFailed()) return '#ef4444';
     return props.textColor ?? '#6b7280';
   };
 
@@ -80,16 +83,24 @@ export const ToolCallBubble = (props: Props) => {
         <Show when={isCalling()}>
           <Spinner color={accent()} />
         </Show>
-        <Show when={!isCalling() && !isCancelled()}>
+        <Show when={!isCalling() && !isCancelled() && !isFailed()}>
           <Checkmark />
         </Show>
         <Show when={isCancelled()}>
           <Cross />
         </Show>
+        <Show when={isFailed()}>
+          <Cross color="#ef4444" />
+        </Show>
         <span class="font-medium tracking-wide">{formatToolName(props.toolCall.toolName)}</span>
         <Show when={isCancelled()}>
           <span class="italic" style={{ opacity: 0.7 }}>
             cancelled by user
+          </span>
+        </Show>
+        <Show when={isFailed()}>
+          <span class="italic" style={{ opacity: 0.7 }}>
+            failed
           </span>
         </Show>
       </div>

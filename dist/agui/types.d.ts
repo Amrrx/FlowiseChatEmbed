@@ -101,6 +101,6 @@ export type ToolCallData = {
     toolCallId: string;
     toolName: string;
     args: string;
-    status: 'calling' | 'completed' | 'cancelled';
+    status: 'calling' | 'completed' | 'cancelled' | 'failed';
 };
 //# sourceMappingURL=types.d.ts.map
