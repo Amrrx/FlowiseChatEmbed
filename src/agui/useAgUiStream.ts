@@ -1,14 +1,14 @@
-import { createSignal, onCleanup, onMount, Accessor, Setter } from 'solid-js';
+import { createSignal, onCleanup, createEffect, Accessor, Setter } from 'solid-js';
 import { connectStream, disconnectStream, StreamEvent } from './stream';
 import { fetchUnreadNotifications, type Notification } from '@/api/notifications';
 import { getOrCreateSessionId } from '@/session/chatSession';
 
 export type UseAgUiStreamInput = {
-  apiHost?: string;
-  agentId?: string;
-  chatflowid: string;
-  protocol?: string;
-  chatflowConfig?: { vars?: Record<string, any> } | any;
+  apiHost?: () => string | undefined;
+  agentId?: () => string | undefined;
+  chatflowid: () => string;
+  protocol?: () => string | undefined;
+  chatflowConfig?: () => { vars?: Record<string, any> } | any;
   isBotVisible?: () => boolean;
 };
 
@@ -33,10 +33,10 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
   const [streamEventHandlers, setStreamEventHandlers] = createSignal<Array<(event: StreamEvent) => void>>([]);
 
   const refreshUnread = async (): Promise<void> => {
-    const vars = (input.chatflowConfig?.vars ?? {}) as Record<string, string>;
+    const vars = (input.chatflowConfig?.()?.vars ?? {}) as Record<string, string>;
     if (!vars.userId) return;
     try {
-      const res = await fetchUnreadNotifications(input.apiHost ?? '', vars.userId);
+      const res = await fetchUnreadNotifications(input.apiHost?.() ?? '', vars.userId);
       setNotifications(res.notifications);
       setInitialUnread(res.notifications);
       setUnreadCount((current) => Math.max(current, res.unread_count));
@@ -45,17 +45,25 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
     }
   };
 
-  onMount(() => {
-    if (input.protocol !== 'ag-ui') return;
+  // Connect when config becomes ready, not when the component mounts. A host
+  // framework can insert the element before assigning chatflowConfig/agentId,
+  // so mount timing != config readiness.
+  let connected = false;
 
-    const vars = (input.chatflowConfig?.vars ?? {}) as Record<string, string>;
-    if (!vars.userId || !input.agentId) return;
+  createEffect(() => {
+    if (connected) return;
+    if (input.protocol?.() !== 'ag-ui') return;
 
-    const sessionId = getOrCreateSessionId(input.chatflowid, vars.customerId);
+    const vars = (input.chatflowConfig?.()?.vars ?? {}) as Record<string, string>;
+    const agentId = input.agentId?.();
+    if (!vars.userId || !agentId) return;
+
+    connected = true;
+    const sessionId = getOrCreateSessionId(input.chatflowid(), vars.customerId);
 
     connectStream({
-      apiHost: input.apiHost ?? '',
-      agentId: input.agentId,
+      apiHost: input.apiHost?.() ?? '',
+      agentId,
       userId: vars.userId,
       userToken: vars.userToken ?? '',
       sessionId,

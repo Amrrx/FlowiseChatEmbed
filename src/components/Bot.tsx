@@ -193,6 +193,7 @@ export type BotProps = {
   showTitle?: boolean;
   showAgentMessages?: boolean;
   title?: string;
+  title_rtl?: string;
   titleAvatarSrc?: string;
   titleTextColor?: string;
   titleBackgroundColor?: string;
@@ -755,12 +756,29 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         consumePendingBotMessages: () => props.consumePendingBotMessages?.() ?? [],
       }
     : useAgUiStream({
-        apiHost: props.apiHost,
-        agentId: props.agentId,
-        chatflowid: props.chatflowid,
-        protocol: props.protocol,
-        chatflowConfig: props.chatflowConfig,
+        apiHost: () => props.apiHost,
+        agentId: () => props.agentId,
+        chatflowid: () => props.chatflowid,
+        protocol: () => props.protocol,
+        chatflowConfig: () => props.chatflowConfig,
       });
+
+  // Direction follows the host page's language (dir/lang on <html>), detected
+  // and tracked live so the host's language switcher updates the widget without
+  // a reload. Set explicitly so the widget isn't at the mercy of inherited dir.
+  const detectRtl = () => {
+    const root = document.documentElement;
+    return root.dir === 'rtl' || /^ar/i.test(root.lang);
+  };
+  const [isRtl, setIsRtl] = createSignal(typeof document !== 'undefined' && detectRtl());
+
+  onMount(() => {
+    const observer = new MutationObserver(() => setIsRtl(detectRtl()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['dir', 'lang'] });
+    onCleanup(() => observer.disconnect());
+  });
+
+  const titleText = () => (isRtl() && props.title_rtl ? props.title_rtl : props.title);
 
   let chatContainer: HTMLDivElement | undefined;
   let bottomSpacer: HTMLDivElement | undefined;
@@ -3245,6 +3263,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       ) : (
         <div
           ref={botContainer}
+          dir={isRtl() ? 'rtl' : 'ltr'}
           class={'relative flex w-full h-full text-base overflow-hidden bg-cover bg-center flex-col items-center chatbot-container ' + props.class}
           onDragEnter={handleDrag}
         >
@@ -3298,9 +3317,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                   <Avatar initialAvatarSrc={props.titleAvatarSrc} />
                 </>
               </Show>
-              <Show when={props.title}>
+              <Show when={titleText()}>
                 <span class="px-3 whitespace-pre-wrap font-semibold max-w-full" style={{ 'font-size': '16px' }}>
-                  {props.title}
+                  {titleText()}
                 </span>
               </Show>
               <Show when={isAGUI()}>

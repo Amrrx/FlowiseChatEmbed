@@ -60,6 +60,7 @@ export type ChatWindowTheme = {
   showTitle?: boolean;
   showAgentMessages?: boolean; // parameter to show agent reasonings when using agentflows
   title?: string;
+  title_rtl?: string;
   titleAvatarSrc?: string;
   titleTextColor?: string;
   titleBackgroundColor?: string;

@@ -69,6 +69,7 @@ export const Full = (props: FullProps, { element }: { element: HTMLElement }) =>
             showTitle={props.theme?.chatWindow?.showTitle}
             showAgentMessages={props.theme?.chatWindow?.showAgentMessages}
             title={props.theme?.chatWindow?.title}
+            title_rtl={props.theme?.chatWindow?.title_rtl}
             titleAvatarSrc={props.theme?.chatWindow?.titleAvatarSrc}
             titleTextColor={props.theme?.chatWindow?.titleTextColor}
             titleBackgroundColor={props.theme?.chatWindow?.titleBackgroundColor}

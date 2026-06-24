@@ -478,6 +478,7 @@ export const BotBubble = (props: Props) => {
             <div class="ml-2 max-w-full">
               <span
                 ref={setBotMessageRef}
+                dir="auto"
                 class="chatbot-host-bubble prose block transition-all duration-200"
                 data-testid="host-bubble"
                 style={{

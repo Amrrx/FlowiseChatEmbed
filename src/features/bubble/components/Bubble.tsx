@@ -33,11 +33,11 @@ export const Bubble = (props: BubbleProps) => {
     pendingBotMessages,
     consumePendingBotMessages,
   } = useAgUiStream({
-    apiHost: props.apiHost,
-    agentId: props.agentId,
-    chatflowid: props.chatflowid,
-    protocol: props.protocol,
-    chatflowConfig: props.chatflowConfig,
+    apiHost: () => props.apiHost,
+    agentId: () => props.agentId,
+    chatflowid: () => props.chatflowid,
+    protocol: () => props.protocol,
+    chatflowConfig: () => props.chatflowConfig,
     isBotVisible: isBotOpened,
   });
 
@@ -160,6 +160,7 @@ export const Bubble = (props: BubbleProps) => {
               showTitle={bubbleProps.theme?.chatWindow?.showTitle}
               showAgentMessages={bubbleProps.theme?.chatWindow?.showAgentMessages}
               title={bubbleProps.theme?.chatWindow?.title}
+              title_rtl={bubbleProps.theme?.chatWindow?.title_rtl}
               titleAvatarSrc={bubbleProps.theme?.chatWindow?.titleAvatarSrc}
               titleTextColor={bubbleProps.theme?.chatWindow?.titleTextColor}
               titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor}

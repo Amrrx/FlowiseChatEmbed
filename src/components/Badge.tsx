@@ -1,4 +1,5 @@
 import { FooterTheme } from '@/features/bubble/types';
+import { appVersion } from '@/constants';
 import { Show, onCleanup, onMount } from 'solid-js';
 
 type Props = {
@@ -60,6 +61,12 @@ export const Badge = (props: Props) => {
           >
             <span>&nbsp;{props.footer?.company ?? 'Flowise'}</span>
           </a>
+          <span
+            class="mx-1.5 inline-flex items-center rounded-full px-1.5 py-[1px] text-[10px] font-medium leading-none align-middle tracking-wide"
+            style={{ color: '#9ca3af', 'background-color': '#f3f4f6', border: '1px solid #e5e7eb' }}
+          >
+            v{appVersion}
+          </span>
         </span>
       </Show>
       <Show when={props.footer?.showFooter === false}>
