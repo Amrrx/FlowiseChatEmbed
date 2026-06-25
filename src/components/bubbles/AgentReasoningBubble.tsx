@@ -52,7 +52,7 @@ export const AgentReasoningBubble = (props: Props) => {
     if (item.type === 'png' || item.type === 'jpeg') {
       const src = item.data as string;
       return (
-        <div class="flex items-center justify-center max-w-[128px] mr-[10px] p-0 m-0">
+        <div class="flex items-center justify-center max-w-[128px] me-[10px] p-0 m-0">
           <img class="w-full h-full bg-cover" src={src} />
         </div>
       );

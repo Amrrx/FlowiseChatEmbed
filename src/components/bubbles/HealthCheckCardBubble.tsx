@@ -100,7 +100,7 @@ const FailedCheck = (props: { check: ValidationCheck; rcaHint: RCAEntry | undefi
       </span>
       <PriorityBadge priority={props.check.priority} />
     </div>
-    <div class="grid grid-cols-2 gap-2 mt-1.5 ml-4">
+    <div class="grid grid-cols-2 gap-2 mt-1.5 ms-4">
       <div>
         <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>
           Expected
@@ -119,7 +119,7 @@ const FailedCheck = (props: { check: ValidationCheck; rcaHint: RCAEntry | undefi
       </div>
     </div>
     <Show when={props.rcaHint}>
-      <div class="mt-1.5 ml-4 flex items-start gap-1 text-[11px]" style={{ color: '#92400e' }}>
+      <div class="mt-1.5 ms-4 flex items-start gap-1 text-[11px]" style={{ color: '#92400e' }}>
         <span>{'\uD83D\uDCA1'}</span>
         <span>
           <span class="font-semibold">{props.rcaHint!.title}:</span> {props.rcaHint!.recommendation}

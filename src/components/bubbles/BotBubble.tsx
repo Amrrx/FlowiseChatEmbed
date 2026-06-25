@@ -111,7 +111,7 @@ export const BotBubble = (props: Props) => {
             downloadFile(annotations);
           });
           const svgContainer = document.createElement('div');
-          svgContainer.className = 'ml-2';
+          svgContainer.className = 'ms-2';
           svgContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-download" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="#ffffff" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" /><path d="M7 11l5 5l5 -5" /><path d="M12 4l0 12" /></svg>`;
 
           button.appendChild(svgContainer);
@@ -397,7 +397,7 @@ export const BotBubble = (props: Props) => {
 
   return (
     <div>
-      <div class="flex flex-row justify-start mb-2 items-start host-container" style={{ 'margin-right': '50px' }}>
+      <div class="flex flex-row justify-start mb-2 items-start host-container" style={{ 'margin-inline-end': '50px' }}>
         <Show when={props.showAvatar}>
           <Avatar initialAvatarSrc={props.avatarSrc} />
         </Show>
@@ -413,7 +413,7 @@ export const BotBubble = (props: Props) => {
           {props.showAgentMessages && props.message.agentReasoning && (
             <details
               ref={botDetailsEl}
-              class="mb-3 ml-2 chatbot-host-bubble overflow-hidden"
+              class="mb-3 ms-2 chatbot-host-bubble overflow-hidden"
               style={{
                 background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.03) 50%, rgba(6, 182, 212, 0.05) 100%)',
                 'border-radius': '10px',
@@ -475,7 +475,7 @@ export const BotBubble = (props: Props) => {
             </div>
           )}
           {props.message.message && (
-            <div class="ml-2 max-w-full">
+            <div class="ms-2 max-w-full">
               <span
                 ref={setBotMessageRef}
                 dir="auto"
@@ -497,8 +497,9 @@ export const BotBubble = (props: Props) => {
           )}
           {/* Timestamp - Always visible when present */}
           <Show when={props.message.dateTime}>
-            <div class={`flex justify-end mt-2 mr-2 ${props.showAvatar ? 'ml-10' : 'ml-2'}`}>
+            <div class={`flex justify-end mt-2 me-2 ${props.showAvatar ? 'ms-10' : 'ms-2'}`}>
               <div
+                dir="ltr"
                 class="px-3 py-1 text-xs rounded-full"
                 style={{
                   background: 'linear-gradient(90deg, rgba(107, 114, 128, 0.08) 0%, rgba(107, 114, 128, 0.12) 100%)',
@@ -583,7 +584,7 @@ export const BotBubble = (props: Props) => {
       {/* Feedback section - Hidden for minimal design */}
       {/* <div>
         <div
-          class={`flex items-center px-3 pb-3 pt-2 ${props.showAvatar ? 'ml-10' : ''}`}
+          class={`flex items-center px-3 pb-3 pt-2 ${props.showAvatar ? 'ms-10' : ''}`}
           style={{
             background: 'linear-gradient(90deg, rgba(247, 248, 255, 0.3) 0%, rgba(247, 248, 255, 0.15) 50%, rgba(247, 248, 255, 0.3) 100%)',
             'border-radius': '12px',

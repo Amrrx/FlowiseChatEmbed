@@ -125,9 +125,9 @@ export const ConfirmCardBubble = (props: Props) => {
         'box-shadow': '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
       }}
     >
-      <span class="absolute left-0 top-0 bottom-0 w-1" style={{ 'background-color': stripeColor() }} />
+      <span class="absolute start-0 top-0 bottom-0 w-1" style={{ 'background-color': stripeColor() }} />
 
-      <div class="pl-5 pr-4 py-4 flex flex-col gap-3">
+      <div class="ps-5 pe-4 py-4 flex flex-col gap-3">
         <div class="flex items-center gap-2" style={{ color: headerColor() }}>
           <span class="flex-1 h-px" style={{ 'background-color': headerColor(), opacity: 0.3 }} />
           <Show when={danger()} fallback={<QuestionIcon color={headerColor()} />}>

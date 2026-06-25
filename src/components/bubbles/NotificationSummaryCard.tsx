@@ -75,7 +75,7 @@ export const NotificationSummaryCard: Component<Props> = (props) => {
         <span style={{ color: '#1e293b', 'font-size': '13px', 'font-weight': '600', 'letter-spacing': '-0.01em' }}>
           {props.notifications.length} unread notification{props.notifications.length !== 1 ? 's' : ''}
         </span>
-        <div style={{ 'margin-left': 'auto', display: 'flex', gap: '6px' }}>
+        <div style={{ 'margin-inline-start': 'auto', display: 'flex', gap: '6px' }}>
           <For each={Object.entries(levelCounts())}>
             {([level, count]) => {
               const badge = LEVEL_BADGE[level] ?? LEVEL_BADGE.info;

@@ -3637,7 +3637,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 <TextInput
                   backgroundColor={props.textInput?.backgroundColor}
                   textColor={props.textInput?.textColor}
-                  placeholder={props.textInput?.placeholder}
+                  placeholder={isRtl() ? props.textInput?.placeholder_rtl ?? 'اكتب سؤالك' : props.textInput?.placeholder}
                   sendButtonColor={props.textInput?.sendButtonColor}
                   maxChars={props.textInput?.maxChars}
                   maxCharsWarningMessage={props.textInput?.maxCharsWarningMessage}

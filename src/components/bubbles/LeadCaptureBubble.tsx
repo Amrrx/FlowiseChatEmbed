@@ -82,12 +82,12 @@ export const LeadCaptureBubble = (props: Props) => {
   };
 
   return (
-    <div class="flex flex-row justify-start mb-2 items-start host-container" style={{ 'margin-right': '50px' }}>
+    <div class="flex flex-row justify-start mb-2 items-start host-container" style={{ 'margin-inline-end': '50px' }}>
       <Show when={props.showAvatar}>
         <Avatar initialAvatarSrc={props.avatarSrc} />
       </Show>
       <div
-        class="px-4 py-2 ml-2 max-w-full chatbot-host-bubble prose"
+        class="px-4 py-2 ms-2 max-w-full chatbot-host-bubble prose"
         data-testid="host-bubble"
         style={{
           'background-color': props.backgroundColor ?? defaultBackgroundColor,

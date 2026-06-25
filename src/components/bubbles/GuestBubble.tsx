@@ -61,7 +61,7 @@ export const GuestBubble = (props: Props) => {
       const fileData = `${props.apiHost}/api/v1/get-upload-file?chatflowId=${props.chatflowid}&chatId=${props.chatId}&fileName=${item.name}`;
       const src = (item.data as string) ?? fileData;
       return (
-        <div class="flex items-center justify-center max-w-[128px] mr-[10px] p-0 m-0">
+        <div class="flex items-center justify-center max-w-[128px] me-[10px] p-0 m-0">
           <img class="w-full h-full bg-cover" src={src} />
         </div>
       );
@@ -78,16 +78,16 @@ export const GuestBubble = (props: Props) => {
       return (
         <div class={`inline-flex items-center h-12 max-w-max p-2 mr-1 flex-none bg-transparent border border-gray-300 rounded-md`}>
           <AttachmentIcon color={props.textColor ?? defaultTextColor} />
-          <span class={`ml-1.5 text-inherit`}>{item.name}</span>
+          <span class={`ms-1.5 text-inherit`}>{item.name}</span>
         </div>
       );
     }
   };
 
   return (
-    <div class="flex justify-end mb-2 items-end guest-container" style={{ 'margin-left': '50px' }}>
+    <div class="flex justify-end mb-2 items-end guest-container" style={{ 'margin-inline-start': '50px' }}>
       <div
-        class="max-w-full flex flex-col justify-center items-start chatbot-guest-bubble gap-2 mr-2 transition-all duration-200"
+        class="max-w-full flex flex-col justify-center items-start chatbot-guest-bubble gap-2 me-2 transition-all duration-200"
         data-testid="guest-bubble"
         style={{
           'background-color': props.backgroundColor ?? defaultBackgroundColor,
@@ -111,7 +111,7 @@ export const GuestBubble = (props: Props) => {
           <span
             ref={setUserMessageRef}
             dir="auto"
-            class="mr-2 whitespace-pre-wrap"
+            class="me-2 whitespace-pre-wrap"
             style={{
               'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
               'line-height': '1.5',

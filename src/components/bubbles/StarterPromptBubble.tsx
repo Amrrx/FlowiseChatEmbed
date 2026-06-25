@@ -12,7 +12,7 @@ export const StarterPromptBubble = (props: Props) => (
       onClick={() => props.onPromptClick?.()}
     >
       <button
-        class="px-4 py-2 ml-1 whitespace-pre-wrap max-w-full chatbot-host-bubble transition-all duration-200 hover:shadow-md active:scale-98"
+        class="px-4 py-2 ms-1 whitespace-pre-wrap max-w-full chatbot-host-bubble transition-all duration-200 hover:shadow-md active:scale-98"
         data-testid="host-bubble"
         style={{
           width: 'max-content',
