@@ -17,6 +17,13 @@ type BotProps = {
 let elementUsed: Element | undefined;
 
 export const initFull = (props: BotProps & { id?: string }) => {
+  // Already mounted → update props in place. Hosts may call init repeatedly
+  // (e.g. auth-driven re-renders); recreating would dispose the widget and
+  // abort its live /stream connection.
+  if (elementUsed && (elementUsed as HTMLElement).isConnected) {
+    Object.assign(elementUsed, props);
+    return;
+  }
   destroy();
   let fullElement = props.id ? document.getElementById(props.id) : document.querySelector('flowise-fullchatbot');
   if (!fullElement) {
@@ -30,6 +37,13 @@ export const initFull = (props: BotProps & { id?: string }) => {
 };
 
 export const init = (props: BotProps) => {
+  // Already mounted → update props in place instead of destroy+recreate.
+  // Hosts may call init repeatedly (e.g. auth-driven re-renders); recreating
+  // would dispose the widget and abort its live /stream connection.
+  if (elementUsed && (elementUsed as HTMLElement).isConnected) {
+    Object.assign(elementUsed, props);
+    return;
+  }
   destroy();
   const element = document.createElement('flowise-chatbot');
   Object.assign(element, props);
