@@ -14,6 +14,11 @@ const parseCustomEvent = (event: AGUIEvent): AGUIAction | null => {
     return { type: 'task_lock', lock: value as TaskLockData };
   }
 
+  if (name === 'compaction') {
+    const v = value as { phase?: 'start' | 'done'; ok?: boolean };
+    return { type: 'compaction', phase: v.phase ?? 'start', ok: v.ok ?? true };
+  }
+
   return { type: 'unknown', raw: event };
 };
 

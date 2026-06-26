@@ -87,6 +87,10 @@ export type AGUIAction = {
     type: 'activity';
     content: string;
 } | {
+    type: 'compaction';
+    phase: 'start' | 'done';
+    ok: boolean;
+} | {
     type: 'unknown';
     raw: AGUIEvent;
 };

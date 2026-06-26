@@ -96,7 +96,8 @@ type messageType =
   | 'cardMessage'
   | 'toolCallMessage'
   | 'notification'
-  | 'notificationSummary';
+  | 'notificationSummary'
+  | 'compactionDivider';
 type ExecutionState = 'INPROGRESS' | 'FINISHED' | 'ERROR' | 'TERMINATED' | 'TIMEOUT' | 'STOPPED';
 
 export type IAgentReasoning = {
@@ -815,6 +816,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [leadEmail, setLeadEmail] = createSignal('');
   const [disclaimerPopupOpen, setDisclaimerPopupOpen] = createSignal(false);
   const [activeTask, setActiveTask] = createSignal<(TaskLockData & { progress_message?: string }) | null>(null);
+  const [compacting, setCompacting] = createSignal(false);
 
   const [openFeedbackDialog, setOpenFeedbackDialog] = createSignal(false);
   const [feedback, setFeedback] = createSignal('');
@@ -982,8 +984,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   });
 
   createMemo(() => {
-    const customerId = (props.chatflowConfig?.vars as any)?.customerId;
-    setChatId(getOrCreateSessionId(props.chatflowid, customerId?.toString()));
+    const vars = (props.chatflowConfig?.vars as any) ?? {};
+    setChatId(getOrCreateSessionId(props.chatflowid, vars.customerId?.toString(), vars.userId));
   });
 
   onMount(() => {
@@ -1515,6 +1517,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const chatIdVal = params.chatId;
 
     let lastProgressCardId: string | null = null;
+    let compactedThisTurn = false;
     const toolCallMessageIndex = new Map<string, number>();
 
     const aguiHeaders: Record<string, string> = {
@@ -1546,6 +1549,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             break;
 
           case 'text_start':
+            if (compactedThisTurn) {
+              setMessages((prev) => [...prev, { message: '', type: 'compactionDivider' }]);
+              compactedThisTurn = false;
+            }
             setMessages((prev) => [...prev, { message: '', type: 'apiMessage' }]);
             break;
 
@@ -1617,6 +1624,15 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           }
 
           case 'activity':
+            break;
+
+          case 'compaction':
+            if (action.phase === 'start') {
+              setCompacting(true);
+            } else {
+              setCompacting(false);
+              if (action.ok) compactedThisTurn = true;
+            }
             break;
 
           case 'run_finished':
@@ -2039,7 +2055,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const clearChat = () => {
     try {
       removeLocalStorageChatHistory(props.chatflowid);
-      setChatId(getOrCreateSessionId(props.chatflowid, (props.chatflowConfig?.vars as any)?.customerId?.toString()));
+      const vars = (props.chatflowConfig?.vars as any) ?? {};
+      setChatId(getOrCreateSessionId(props.chatflowid, vars.customerId?.toString(), vars.userId));
       setUploadedFiles([]);
       const messages: MessageType[] =
         props.showWelcomeMessage ?? true
@@ -2068,6 +2085,22 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         window.removeEventListener('beforeunload', clearChat);
       };
     }
+  });
+
+  // Reset the conversation when the host switches the authenticated user on the
+  // same browser ("login as"). Detected purely from the userId prop — a change
+  // from one non-empty user to a different one (undefined→user is first
+  // hydration, user→same is a token refresh: neither resets). The full blob is
+  // wiped (history + lead) so nothing of the previous user survives; clearChat
+  // then mints a fresh chatId for the new user and restores the welcome state.
+  let lastUserId: string | undefined;
+  createEffect(() => {
+    const nextUserId = (props.chatflowConfig?.vars as any)?.userId as string | undefined;
+    const previousUserId = lastUserId;
+    lastUserId = nextUserId;
+    if (!previousUserId || !nextUserId || previousUserId === nextUserId) return;
+    localStorage.removeItem(`${props.chatflowid}_EXTERNAL`);
+    clearChat();
   });
 
   createEffect(() => {
@@ -3535,8 +3568,17 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                       {message.type === 'notificationSummary' && (message as any).notifications?.length > 0 && (
                         <NotificationSummaryCard notifications={(message as any).notifications} />
                       )}
-                      {message.type === 'userMessage' && loading() && index() === messages().length - 1 && <LoadingBubble />}
-                      {message.type === 'apiMessage' && message.message === '' && loading() && index() === messages().length - 1 && <LoadingBubble />}
+                      {message.type === 'compactionDivider' && (
+                        <div class="compaction-divider">
+                          <span>Compacted</span>
+                        </div>
+                      )}
+                      {message.type === 'userMessage' && loading() && index() === messages().length - 1 && (
+                        <LoadingBubble label={compacting() ? 'Compacting conversation…' : undefined} />
+                      )}
+                      {message.type === 'apiMessage' && message.message === '' && loading() && index() === messages().length - 1 && (
+                        <LoadingBubble label={compacting() ? 'Compacting conversation…' : undefined} />
+                      )}
                     </>
                   );
                 }}

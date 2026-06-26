@@ -21,12 +21,23 @@ const fallbackRandom = (): string => crypto.randomUUID?.() ?? Math.random().toSt
 
 const buildId = (customerId?: string): string => (customerId ? `${customerId}+${fallbackRandom()}` : fallbackRandom());
 
-export function getOrCreateSessionId(chatflowid: string, customerId?: string): string {
+export function getOrCreateSessionId(chatflowid: string, customerId?: string, userId?: string): string {
   const saved = getLocalStorageChatflow(chatflowid);
-  if (saved?.chatId) return saved.chatId; // legacy field name — same value
+
+  // The session is bound to the user who created it. A different userId on the
+  // same browser ("login as") must get a fresh chatId: Flowise keys conversation
+  // memory by chatId alone, so reusing it would blend the two users' histories.
+  if (saved?.chatId) {
+    if (saved.ownerId === undefined) {
+      // Legacy session created before owner-binding — adopt it for the current user.
+      if (userId !== undefined) setLocalStorageChatflow(chatflowid, saved.chatId, { ownerId: userId });
+      return saved.chatId; // legacy field name — same value
+    }
+    if (userId === undefined || saved.ownerId === userId) return saved.chatId;
+  }
 
   const fresh = buildId(customerId);
-  setLocalStorageChatflow(chatflowid, fresh);
+  setLocalStorageChatflow(chatflowid, fresh, userId === undefined ? {} : { ownerId: userId });
   return fresh;
 }
 

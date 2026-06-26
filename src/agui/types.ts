@@ -78,6 +78,7 @@ export type AGUIAction =
   | { type: 'tool_call_end'; toolCallId: string }
   | { type: 'task_lock'; lock: TaskLockData }
   | { type: 'activity'; content: string }
+  | { type: 'compaction'; phase: 'start' | 'done'; ok: boolean }
   | { type: 'unknown'; raw: AGUIEvent };
 
 export type TaskLockData = {

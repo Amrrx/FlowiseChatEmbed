@@ -49,17 +49,25 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
   // framework can insert the element before assigning chatflowConfig/agentId,
   // so mount timing != config readiness.
   let connected = false;
+  let connectedUserId: string | undefined;
 
   createEffect(() => {
-    if (connected) return;
     if (input.protocol?.() !== 'ag-ui') return;
 
     const vars = (input.chatflowConfig?.()?.vars ?? {}) as Record<string, string>;
     const agentId = input.agentId?.();
     if (!vars.userId || !agentId) return;
 
+    // Already connected for this user — nothing to do (other prop changes don't
+    // warrant a reconnect). A *different* userId on the same browser ("login as")
+    // means the live socket is bound to the previous user's channels server-side,
+    // so tear it down and reconnect — picking up the new user's fresh sessionId.
+    if (connected && vars.userId === connectedUserId) return;
+    if (connected) disconnectStream();
+
     connected = true;
-    const sessionId = getOrCreateSessionId(input.chatflowid(), vars.customerId);
+    connectedUserId = vars.userId;
+    const sessionId = getOrCreateSessionId(input.chatflowid(), vars.customerId, vars.userId);
 
     connectStream({
       apiHost: input.apiHost?.() ?? '',

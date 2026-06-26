@@ -30,7 +30,7 @@ type FilePreview = {
     preview: string;
     type: string;
 };
-type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage' | 'notification' | 'notificationSummary';
+type messageType = 'apiMessage' | 'userMessage' | 'usermessagewaiting' | 'leadCaptureMessage' | 'cardMessage' | 'toolCallMessage' | 'notification' | 'notificationSummary' | 'compactionDivider';
 type ExecutionState = 'INPROGRESS' | 'FINISHED' | 'ERROR' | 'TERMINATED' | 'TIMEOUT' | 'STOPPED';
 export type IAgentReasoning = {
     agentName?: string;

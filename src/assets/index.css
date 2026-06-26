@@ -91,34 +91,72 @@ pre {
 .bubble1,
 .bubble2,
 .bubble3 {
-  background-color: var(--chatbot-host-bubble-color);
-  opacity: 0.5;
-}
-
-.bubble1 {
-  animation: chatBubbles 1s ease-in-out infinite;
+  background-color: var(--chatbot-button-bg-color);
+  opacity: 0.4;
+  animation: chatBubbles 1.4s ease-in-out infinite;
 }
 
 .bubble2 {
-  animation: chatBubbles 1s ease-in-out infinite;
-  animation-delay: 0.3s;
+  animation-delay: 0.2s;
 }
 
 .bubble3 {
-  animation: chatBubbles 1s ease-in-out infinite;
-  animation-delay: 0.5s;
+  animation-delay: 0.4s;
 }
 
 @keyframes chatBubbles {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
+  0%,
   100% {
-    transform: translateY(0);
+    transform: scale(0.6);
+    opacity: 0.3;
   }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.loading-label {
+  font-size: 0.875rem;
+  color: var(--chatbot-host-bubble-color);
+  background: linear-gradient(
+    90deg,
+    var(--chatbot-host-bubble-color) 30%,
+    var(--chatbot-button-bg-color) 50%,
+    var(--chatbot-host-bubble-color) 70%
+  );
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: loading-shimmer 1.8s linear infinite;
+}
+
+@keyframes loading-shimmer {
+  to {
+    background-position: -200% center;
+  }
+}
+
+.compaction-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 10px;
+  color: var(--chatbot-host-bubble-color);
+  opacity: 0.5;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.compaction-divider::before,
+.compaction-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.4;
 }
 
 button,
