@@ -36,7 +36,13 @@ export function getOrCreateSessionId(chatflowid: string, customerId?: string, us
     if (userId === undefined || saved.ownerId === userId) return saved.chatId;
   }
 
+  // Reaching here means a clean slate is required: either no session exists yet,
+  // or one exists but belongs to a different user (owner mismatch). On "login as"
+  // the host reloads the whole page, so this getter is the only mount-time reset
+  // point — it must drop the prior owner's history AND lead, not just re-mint the
+  // id. A plain merge would carry the old conversation into the new owner.
   const fresh = buildId(customerId);
+  localStorage.removeItem(`${chatflowid}_EXTERNAL`);
   setLocalStorageChatflow(chatflowid, fresh, userId === undefined ? {} : { ownerId: userId });
   return fresh;
 }
