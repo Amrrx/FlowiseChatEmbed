@@ -30,8 +30,8 @@ export const ShortTextInput = (props: ShortTextInputProps) => {
 
   // @ts-expect-error: unknown type
   const handleKeyDown = (e) => {
-    // Handle Shift + Enter new line
-    if (e.keyCode == 13 && e.shiftKey) {
+    // Handle Shift/Alt + Enter new line
+    if (e.keyCode == 13 && (e.shiftKey || e.altKey)) {
       e.preventDefault();
       e.stopPropagation();
       e.currentTarget.value += '\n';

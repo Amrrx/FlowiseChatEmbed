@@ -67,13 +67,24 @@ export const Bubble = (props: BubbleProps) => {
   const buttonBottom = props.theme?.button?.bottom ?? 20;
   const chatWindowBottom = buttonBottom + buttonSize + 10; // Adjust the offset here for slight shift
   const windowGap = 10;
+  const minChatSize = 300;
+  const sizeMargin = 20;
+
+  // Which screen corner the button occupies — the single source of truth for how the
+  // window unfolds, where the resize grip sits, and which way a resize drag grows.
+  const anchorFlags = () => {
+    const pos = buttonPosition();
+    return {
+      nearRight: pos.right + buttonSize / 2 < window.innerWidth / 2,
+      nearBottom: pos.bottom + buttonSize / 2 < window.innerHeight / 2,
+    };
+  };
 
   // Unfold the chat window from whichever corner the button occupies: upward from a
   // bottom corner, downward from a top corner, and horizontally toward screen center.
   const windowAnchor = () => {
     const pos = buttonPosition();
-    const nearRight = pos.right + buttonSize / 2 < window.innerWidth / 2;
-    const nearBottom = pos.bottom + buttonSize / 2 < window.innerHeight / 2;
+    const { nearRight, nearBottom } = anchorFlags();
     const buttonTop = window.innerHeight - pos.bottom - buttonSize;
     const buttonLeft = window.innerWidth - pos.right - buttonSize;
 
@@ -84,6 +95,124 @@ export const Bubble = (props: BubbleProps) => {
       top: nearBottom ? 'auto' : `${buttonTop + buttonSize + windowGap}px`,
       'transform-origin': `${nearBottom ? 'bottom' : 'top'} ${nearRight ? 'right' : 'left'}`,
     };
+  };
+
+  // Drag-to-resize: persisted per chatflow, applied on desktop only.
+  const sizeStorageKey = () => (props.chatflowid ? `${props.chatflowid}_CHAT_SIZE` : null);
+
+  const readPersistedSize = () => {
+    const key = sizeStorageKey();
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.width === 'number' && typeof parsed?.height === 'number') {
+        return { width: parsed.width, height: parsed.height };
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  };
+
+  const persistChatSize = (size: { width: number; height: number }) => {
+    const key = sizeStorageKey();
+    if (!key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(size));
+    } catch (e) {
+      return;
+    }
+  };
+
+  const [chatSize, setChatSize] = createSignal<{ width: number; height: number } | null>(readPersistedSize());
+
+  let windowRef: HTMLDivElement | undefined;
+  let resizeStartX = 0;
+  let resizeStartY = 0;
+  let resizeStartW = 0;
+  let resizeStartH = 0;
+  let resizeNearRight = true;
+  let resizeNearBottom = true;
+
+  const onResizePointerDown = (e: PointerEvent) => {
+    if (!windowRef) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = windowRef.getBoundingClientRect();
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    resizeStartW = rect.width;
+    resizeStartH = rect.height;
+    const flags = anchorFlags();
+    resizeNearRight = flags.nearRight;
+    resizeNearBottom = flags.nearBottom;
+    document.addEventListener('pointermove', onResizePointerMove);
+    document.addEventListener('pointerup', onResizePointerUp);
+  };
+
+  const onResizePointerMove = (e: PointerEvent) => {
+    // Grow toward screen center: the sign follows the anchored corner.
+    const deltaW = resizeNearRight ? resizeStartX - e.clientX : e.clientX - resizeStartX;
+    const deltaH = resizeNearBottom ? resizeStartY - e.clientY : e.clientY - resizeStartY;
+    setChatSize({
+      width: Math.min(Math.max(resizeStartW + deltaW, minChatSize), window.innerWidth - sizeMargin),
+      height: Math.min(Math.max(resizeStartH + deltaH, minChatSize), window.innerHeight - sizeMargin),
+    });
+  };
+
+  const onResizePointerUp = () => {
+    document.removeEventListener('pointermove', onResizePointerMove);
+    document.removeEventListener('pointerup', onResizePointerUp);
+    const size = chatSize();
+    if (size) persistChatSize(size);
+  };
+
+  // A resized size overrides theme/default dimensions and the max-height cap, desktop only.
+  const sizeStyle = () => {
+    const size = window.innerWidth > 640 ? chatSize() : null;
+    const themeHeight = bubbleProps.theme?.chatWindow?.height;
+    const themeWidth = bubbleProps.theme?.chatWindow?.width;
+    return {
+      width: size ? `${size.width}px` : themeWidth ? `${themeWidth.toString()}px` : undefined,
+      height: size ? `${size.height}px` : themeHeight ? `${themeHeight.toString()}px` : 'calc(100% - 150px)',
+      'max-height': size ? `${window.innerHeight - sizeMargin}px` : undefined,
+    };
+  };
+
+  // Grip hugs the inner corner (opposite the button's anchor), flush with the window's
+  // rounded corner so it reads as part of the corner rather than a floating chip.
+  const gripStyle = () => {
+    const { nearRight, nearBottom } = anchorFlags();
+    const vSide = nearBottom ? 'top' : 'bottom';
+    const hSide = nearRight ? 'left' : 'right';
+    const oppV = nearBottom ? 'bottom' : 'top';
+    const oppH = nearRight ? 'right' : 'left';
+    return {
+      position: 'absolute' as const,
+      [vSide]: '0px',
+      [hSide]: '0px',
+      [`border-${vSide}-${hSide}-radius`]: '18px',
+      [`border-${oppV}-${oppH}-radius`]: '9px',
+      // width: '22px',
+      // height: '22px',
+      padding: '2px',
+      overflow: 'hidden',
+      background: 'rgba(255, 255, 255, 0.55)',
+      'box-shadow': '0 1px 3px rgba(0, 0, 0, 0.12)',
+      'align-items': nearBottom ? 'flex-start' : 'flex-end',
+      'justify-content': nearRight ? 'flex-start' : 'flex-end',
+      cursor: nearBottom === nearRight ? 'nwse-resize' : 'nesw-resize',
+      'z-index': 60,
+      'touch-action': 'none',
+    };
+  };
+
+  // Rotate the grip glyph so its diagonal always points outward toward its own corner.
+  const gripRotation = () => {
+    const { nearRight, nearBottom } = anchorFlags();
+    return nearBottom ? (nearRight ? 180 : 270) : nearRight ? 90 : 0;
   };
 
   // Add viewport meta tag dynamically
@@ -130,9 +259,9 @@ export const Bubble = (props: BubbleProps) => {
       />
       <div
         part="bot"
+        ref={windowRef}
         style={{
-          height: bubbleProps.theme?.chatWindow?.height ? `${bubbleProps.theme?.chatWindow?.height.toString()}px` : 'calc(100% - 150px)',
-          width: bubbleProps.theme?.chatWindow?.width ? `${bubbleProps.theme?.chatWindow?.width.toString()}px` : undefined,
+          ...sizeStyle(),
           transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
           transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
           'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
@@ -151,6 +280,18 @@ export const Bubble = (props: BubbleProps) => {
           ` bottom-${chatWindowBottom}px`
         }
       >
+        <Show when={isBotOpened()}>
+          <div
+            class="hidden sm:flex opacity-90 hover:opacity-100 transition-opacity duration-150"
+            style={gripStyle()}
+            onPointerDown={onResizePointerDown}
+            title="Drag to resize"
+          >
+            <svg viewBox="0 0 18 18" width="15" height="15" style={{ transform: `rotate(${gripRotation()}deg)` }}>
+              <path d="M14 6 L6 14 M14 10 L10 14" stroke="#334155" stroke-width="1.8" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+        </Show>
         <Show when={isBotStarted()}>
           <div class="relative h-full">
             <Show when={isBotOpened()}>
