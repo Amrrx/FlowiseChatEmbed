@@ -66,6 +66,25 @@ export const Bubble = (props: BubbleProps) => {
   const buttonSize = getBubbleButtonSize(props.theme?.button?.size); // Default to 48px if size is not provided
   const buttonBottom = props.theme?.button?.bottom ?? 20;
   const chatWindowBottom = buttonBottom + buttonSize + 10; // Adjust the offset here for slight shift
+  const windowGap = 10;
+
+  // Unfold the chat window from whichever corner the button occupies: upward from a
+  // bottom corner, downward from a top corner, and horizontally toward screen center.
+  const windowAnchor = () => {
+    const pos = buttonPosition();
+    const nearRight = pos.right + buttonSize / 2 < window.innerWidth / 2;
+    const nearBottom = pos.bottom + buttonSize / 2 < window.innerHeight / 2;
+    const buttonTop = window.innerHeight - pos.bottom - buttonSize;
+    const buttonLeft = window.innerWidth - pos.right - buttonSize;
+
+    return {
+      right: nearRight ? `${Math.max(0, pos.right)}px` : 'auto',
+      left: nearRight ? 'auto' : `${Math.max(0, buttonLeft)}px`,
+      bottom: nearBottom ? `${pos.bottom + buttonSize + windowGap}px` : 'auto',
+      top: nearBottom ? 'auto' : `${buttonTop + buttonSize + windowGap}px`,
+      'transform-origin': `${nearBottom ? 'bottom' : 'top'} ${nearRight ? 'right' : 'left'}`,
+    };
+  };
 
   // Add viewport meta tag dynamically
   createEffect(() => {
@@ -102,6 +121,7 @@ export const Bubble = (props: BubbleProps) => {
         isBotOpened={isBotOpened()}
         setButtonPosition={setButtonPosition}
         dragAndDrop={bubbleProps.theme?.button?.dragAndDrop ?? false}
+        chatflowid={props.chatflowid}
         autoOpen={bubbleProps.theme?.button?.autoWindowOpen?.autoOpen ?? false}
         openDelay={bubbleProps.theme?.button?.autoWindowOpen?.openDelay}
         autoOpenOnMobile={bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile ?? false}
@@ -114,7 +134,6 @@ export const Bubble = (props: BubbleProps) => {
           height: bubbleProps.theme?.chatWindow?.height ? `${bubbleProps.theme?.chatWindow?.height.toString()}px` : 'calc(100% - 150px)',
           width: bubbleProps.theme?.chatWindow?.width ? `${bubbleProps.theme?.chatWindow?.width.toString()}px` : undefined,
           transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
-          'transform-origin': 'bottom right',
           transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
           'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
           'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
@@ -124,8 +143,7 @@ export const Bubble = (props: BubbleProps) => {
           'background-repeat': 'no-repeat',
           'z-index': 42424242,
           'border-radius': '20px',
-          bottom: `${Math.min(buttonPosition().bottom + buttonSize + 10, window.innerHeight - chatWindowBottom)}px`,
-          right: `${Math.max(0, Math.min(buttonPosition().right, window.innerWidth - (bubbleProps.theme?.chatWindow?.width ?? 410) - 10))}px`,
+          ...windowAnchor(),
         }}
         class={
           `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` +
