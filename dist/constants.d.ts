@@ -1,4 +1,4 @@
 import type { BubbleProps } from './features/bubble';
-export declare const appVersion = "3.9.3";
+export declare const appVersion = "3.9.5";
 export declare const defaultBotProps: BubbleProps;
 //# sourceMappingURL=constants.d.ts.map
