@@ -1,10 +1,6 @@
 import { createSignal, createEffect, on, onMount, onCleanup, Show, For } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import {
-  Announcement,
-  fetchActiveAnnouncements,
-  markAnnouncementsRead,
-} from '@/api/announcements';
+import { Announcement, fetchActiveAnnouncements, markAnnouncementsRead } from '@/api/announcements';
 
 export type AnnouncementsController = {
   announcements: () => Announcement[];
@@ -190,7 +186,16 @@ export const AnnouncementsButton = (props: Props) => {
           color: props.color || 'currentColor',
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <path d="M3 11l18-5v12L3 14v-3z" />
           <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
         </svg>
@@ -222,76 +227,82 @@ export const AnnouncementsButton = (props: Props) => {
       <Show when={open()}>
         <Portal mount={props.overlayMount?.()}>
           <div
-          onClick={() => setOpen(false)}
-          style={{
-            position: 'fixed',
-            inset: '0',
-            background: 'rgba(0,0,0,0.45)',
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'center',
-            'z-index': '2147483000',
-            'backdrop-filter': 'blur(2px)',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setOpen(false)}
             style={{
-              background: '#fff',
-              color: '#111827',
-              'border-radius': '16px',
-              width: 'min(92%, 440px)',
-              'max-height': '80vh',
-              overflow: 'auto',
-              'box-shadow': '0 20px 60px rgba(0,0,0,0.35)',
-              'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              position: 'fixed',
+              inset: '0',
+              background: 'rgba(0,0,0,0.45)',
+              display: 'flex',
+              'align-items': 'center',
+              'justify-content': 'center',
+              'z-index': '2147483000',
+              'backdrop-filter': 'blur(2px)',
             }}
           >
-            <div style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', padding: '16px 18px 8px' }}>
-              <span style={{ 'font-size': '15px', 'font-weight': '700' }}>What's new</span>
-              <button type="button" onClick={() => setOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', 'font-size': '20px', color: '#6b7280', 'line-height': '1' }}>×</button>
-            </div>
-
-            <Show
-              when={newAnnouncements().length > 0}
-              fallback={
-                <div style={{ padding: '28px 18px', 'text-align': 'center', color: '#6b7280', 'font-size': '13px' }}>
-                  <div style={{ 'font-size': '22px', 'margin-bottom': '6px' }}>🎉</div>
-                  You're all caught up
-                </div>
-              }
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                color: '#111827',
+                'border-radius': '16px',
+                width: 'min(92%, 440px)',
+                'max-height': '80vh',
+                overflow: 'auto',
+                'box-shadow': '0 20px 60px rgba(0,0,0,0.35)',
+                'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+              }}
             >
-              <For each={newAnnouncements()}>{(a) => <Card a={a} />}</For>
-            </Show>
+              <div style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', padding: '16px 18px 8px' }}>
+                <span style={{ 'font-size': '15px', 'font-weight': '700' }}>What's new</span>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', 'font-size': '20px', color: '#6b7280', 'line-height': '1' }}
+                >
+                  ×
+                </button>
+              </div>
 
-            <Show when={earlierAnnouncements().length > 0}>
-              <button
-                type="button"
-                onClick={() => setShowEarlier((v) => !v)}
-                style={{
-                  display: 'flex',
-                  'align-items': 'center',
-                  'justify-content': 'center',
-                  gap: '6px',
-                  width: '100%',
-                  padding: '12px 18px',
-                  background: '#fafafa',
-                  border: 'none',
-                  'border-top': '1px solid #f1f1f4',
-                  cursor: 'pointer',
-                  color: '#6b7280',
-                  'font-size': '13px',
-                  'font-weight': '600',
-                }}
+              <Show
+                when={newAnnouncements().length > 0}
+                fallback={
+                  <div style={{ padding: '28px 18px', 'text-align': 'center', color: '#6b7280', 'font-size': '13px' }}>
+                    <div style={{ 'font-size': '22px', 'margin-bottom': '6px' }}>🎉</div>
+                    You're all caught up
+                  </div>
+                }
               >
-                <span style={{ 'font-size': '9px', transform: showEarlier() ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
-                {showEarlier() ? 'Hide earlier' : 'Show earlier'} ({earlierAnnouncements().length})
-              </button>
-              <Show when={showEarlier()}>
-                <For each={earlierAnnouncements()}>{(a) => <Card a={a} />}</For>
+                <For each={newAnnouncements()}>{(a) => <Card a={a} />}</For>
               </Show>
-            </Show>
-          </div>
+
+              <Show when={earlierAnnouncements().length > 0}>
+                <button
+                  type="button"
+                  onClick={() => setShowEarlier((v) => !v)}
+                  style={{
+                    display: 'flex',
+                    'align-items': 'center',
+                    'justify-content': 'center',
+                    gap: '6px',
+                    width: '100%',
+                    padding: '12px 18px',
+                    background: '#fafafa',
+                    border: 'none',
+                    'border-top': '1px solid #f1f1f4',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    'font-size': '13px',
+                    'font-weight': '600',
+                  }}
+                >
+                  <span style={{ 'font-size': '9px', transform: showEarlier() ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
+                  {showEarlier() ? 'Hide earlier' : 'Show earlier'} ({earlierAnnouncements().length})
+                </button>
+                <Show when={showEarlier()}>
+                  <For each={earlierAnnouncements()}>{(a) => <Card a={a} />}</For>
+                </Show>
+              </Show>
+            </div>
           </div>
         </Portal>
       </Show>
