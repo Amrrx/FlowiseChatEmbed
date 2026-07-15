@@ -53,6 +53,7 @@ import { ProgressCardBubble } from './bubbles/ProgressCardBubble';
 import { ToolCallBubble } from './bubbles/ToolCallBubble';
 import { NotificationBubble } from './bubbles/NotificationBubble';
 import { NotificationSummaryCard } from './bubbles/NotificationSummaryCard';
+import { AnnouncementsButton, AnnouncementsController } from './AnnouncementsButton';
 import type { Notification } from '@/api/notifications';
 import { markNotificationsRead } from '@/api/notifications';
 
@@ -219,6 +220,9 @@ export type BotProps = {
   unreadCount?: number;
   setUnreadCount?: (fn: (prev: number) => number) => void;
   registerStreamHandler?: (handler: (event: StreamEvent) => void) => () => void;
+  overlayMount?: () => HTMLElement | undefined;
+  announceController?: AnnouncementsController;
+  chatOpened?: () => boolean;
   refreshUnread?: () => Promise<void>;
   pendingBotMessages?: () => StreamEvent[];
   consumePendingBotMessages?: () => StreamEvent[];
@@ -3369,6 +3373,17 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 />
               </Show>
               <div style={{ flex: 1 }} />
+              <Show when={isAGUI()}>
+                <AnnouncementsButton
+                  apiHost={props.apiHost ?? ''}
+                  userId={((props.chatflowConfig?.vars as any)?.userId as string) ?? ''}
+                  registerStreamHandler={stream.registerStreamHandler}
+                  color={props.titleTextColor || props.bubbleTextColor}
+                  overlayMount={props.overlayMount}
+                  controller={props.announceController}
+                  chatOpened={props.chatOpened}
+                />
+              </Show>
               <DeleteButton
                 sendButtonColor={props.bubbleTextColor}
                 type="button"

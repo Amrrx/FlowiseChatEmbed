@@ -6,6 +6,7 @@ import { Bot, BotProps } from '../../../components/Bot';
 import Tooltip from './Tooltip';
 import { getBubbleButtonSize } from '@/utils';
 import { useAgUiStream } from '@/agui/useAgUiStream';
+import { createAnnouncements } from '@/components/AnnouncementsButton';
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
@@ -17,6 +18,9 @@ export const Bubble = (props: BubbleProps) => {
 
   const [isBotOpened, setIsBotOpened] = createSignal(false);
   const [isBotStarted, setIsBotStarted] = createSignal(false);
+  // Anchor for the announcement overlay — sits at the bubble root, outside the
+  // chat window's `scale3d` transform, so a fixed overlay covers the full viewport.
+  const [announceHost, setAnnounceHost] = createSignal<HTMLDivElement>();
   const [buttonPosition, setButtonPosition] = createSignal({
     bottom: bubbleProps.theme?.button?.bottom ?? 20,
     right: bubbleProps.theme?.button?.right ?? 20,
@@ -39,6 +43,15 @@ export const Bubble = (props: BubbleProps) => {
     protocol: () => props.protocol,
     chatflowConfig: () => props.chatflowConfig,
     isBotVisible: isBotOpened,
+  });
+
+  // Owned here (not in the header button) so the closed launcher can react to an
+  // unread announcement before the chat is ever opened. Shared into Bot, so the
+  // header button and the bubble motion read one signal.
+  const announce = createAnnouncements({
+    apiHost: () => props.apiHost ?? '',
+    userId: () => ((props.chatflowConfig?.vars as any)?.userId as string) ?? '',
+    registerStreamHandler,
   });
 
   const openBot = () => {
@@ -235,6 +248,7 @@ export const Bubble = (props: BubbleProps) => {
         <style>{props.theme?.customCSS}</style>
       </Show>
       <style>{styles}</style>
+      <div ref={setAnnounceHost} />
       <Tooltip
         showTooltip={showTooltip && !isBotOpened()}
         position={buttonPosition()}
@@ -256,6 +270,7 @@ export const Bubble = (props: BubbleProps) => {
         autoOpenOnMobile={bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile ?? false}
         streamConnected={streamConnected()}
         unreadCount={unreadCount()}
+        announcementUnread={announce.unreadCount()}
       />
       <div
         part="bot"
@@ -359,6 +374,9 @@ export const Bubble = (props: BubbleProps) => {
               refreshUnread={refreshUnread}
               pendingBotMessages={pendingBotMessages}
               consumePendingBotMessages={consumePendingBotMessages}
+              overlayMount={announceHost}
+              announceController={announce}
+              chatOpened={isBotOpened}
             />
           </div>
         </Show>

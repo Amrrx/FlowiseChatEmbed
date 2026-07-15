@@ -13,6 +13,7 @@ type Props = ButtonTheme & {
   autoOpenOnMobile?: boolean; // Optional parameter for opening on mobile
   streamConnected?: boolean;
   unreadCount?: number;
+  announcementUnread?: number;
 };
 
 const defaultButtonColor = '#00B8D9';
@@ -186,6 +187,33 @@ export const BubbleButton = (props: Props) => {
           'box-shadow': '0 4px 16px rgba(59, 130, 246, 0.3), 0 2px 8px rgba(0, 0, 0, 0.1)',
         }}
       >
+        {/* Announcement attention motion — amber radar ripple, only while the chat
+            is closed and something is unread. Two staggered rings = continuous ping. */}
+        <Show when={!props.isBotOpened && (props.announcementUnread ?? 0) > 0}>
+          <style>{`@keyframes announce-ripple{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.9);opacity:0}}`}</style>
+          <span
+            style={{
+              position: 'absolute',
+              inset: '0',
+              'border-radius': '50%',
+              border: '2px solid #f59e0b',
+              animation: 'announce-ripple 1.6s ease-out infinite',
+              'pointer-events': 'none',
+            }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              inset: '0',
+              'border-radius': '50%',
+              border: '2px solid #f59e0b',
+              animation: 'announce-ripple 1.6s ease-out infinite',
+              'animation-delay': '0.8s',
+              'pointer-events': 'none',
+            }}
+          />
+        </Show>
+
         <Show when={isNotDefined(props.customIconSrc)} keyed>
           <svg
             viewBox="0 0 24 24"

@@ -3,6 +3,7 @@ import { BotMessageTheme, FooterTheme, TextInputTheme, UserMessageTheme, Feedbac
 import { FilePreview } from '@/components/inputs/textInput/components/FilePreview';
 import type { CardData, ToolCallData } from '@/agui/types';
 import type { StreamEvent } from '@/agui/stream';
+import { AnnouncementsController } from './AnnouncementsButton';
 import type { Notification } from '@/api/notifications';
 export type FileEvent<T = EventTarget> = {
     target: T;
@@ -139,6 +140,9 @@ export type BotProps = {
     unreadCount?: number;
     setUnreadCount?: (fn: (prev: number) => number) => void;
     registerStreamHandler?: (handler: (event: StreamEvent) => void) => () => void;
+    overlayMount?: () => HTMLElement | undefined;
+    announceController?: AnnouncementsController;
+    chatOpened?: () => boolean;
     refreshUnread?: () => Promise<void>;
     pendingBotMessages?: () => StreamEvent[];
     consumePendingBotMessages?: () => StreamEvent[];
