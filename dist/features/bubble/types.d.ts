@@ -59,6 +59,7 @@ export type ChatWindowTheme = {
     titleAvatarSrc?: string;
     titleTextColor?: string;
     titleBackgroundColor?: string;
+    titleHeight?: number;
     showWelcomeMessage?: boolean;
     welcomeMessage?: string;
     errorMessage?: string;
@@ -80,6 +81,9 @@ export type ChatWindowTheme = {
     dateTimeToggle?: DateTimeToggleTheme;
     renderHTML?: boolean;
     autoMessage?: AutoMessageTheme;
+    sidebarBorderWidth?: number;
+    sidebarBorderColor?: string;
+    sidebarBoxShadow?: string;
 };
 export type ButtonTheme = {
     size?: 'small' | 'medium' | 'large' | number;

@@ -198,6 +198,7 @@ export type BotProps = {
   titleAvatarSrc?: string;
   titleTextColor?: string;
   titleBackgroundColor?: string;
+  titleHeight?: number; // custom title bar height in pixels; defaults to 56
   formBackgroundColor?: string;
   formTextColor?: string;
   fontSize?: number;
@@ -3335,8 +3336,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
           {props.showTitle ? (
             <div
-              class="flex flex-row items-center w-full h-[56px] absolute top-0 left-0 z-10"
+              class="flex flex-row items-center w-full absolute top-0 left-0 z-10"
               style={{
+                height: `${props.titleHeight ?? 56}px`,
                 background: props.titleBackgroundColor || props.bubbleBackgroundColor || defaultTitleBackgroundColor,
                 color: props.titleTextColor || props.bubbleTextColor || defaultBackgroundColor,
                 'border-top-left-radius': props.isFullPage ? '0px' : '20px',
@@ -3383,7 +3385,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           <div class="flex flex-col w-full h-full justify-start z-0">
             <div
               ref={chatContainer}
-              class="overflow-y-scroll flex flex-col flex-grow min-w-full w-full px-3 pt-[70px] relative scrollable-container chatbot-chat-view scroll-smooth"
+              class="overflow-y-scroll flex flex-col flex-grow min-w-full w-full px-3 relative scrollable-container chatbot-chat-view scroll-smooth"
+              style={{ 'padding-top': `${(props.titleHeight ?? 56) + 14}px` }}
             >
               <For each={[...messages()]}>
                 {(message, index) => {

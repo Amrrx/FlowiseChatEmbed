@@ -69,6 +69,7 @@ export type ChatWindowTheme = {
   titleAvatarSrc?: string;
   titleTextColor?: string;
   titleBackgroundColor?: string;
+  titleHeight?: number; // custom title bar height in pixels; defaults to 56 (lets a host match its own header height)
   showWelcomeMessage?: boolean;
   welcomeMessage?: string;
   errorMessage?: string;
@@ -90,6 +91,11 @@ export type ChatWindowTheme = {
   dateTimeToggle?: DateTimeToggleTheme;
   renderHTML?: boolean;
   autoMessage?: AutoMessageTheme;
+  // Sidebar-mode-only edge styling (layout: 'sidebar'); lets a host app match its own
+  // design system instead of using the built-in defaults.
+  sidebarBorderWidth?: number; // px; defaults to 1
+  sidebarBorderColor?: string; // defaults to #d1d5db
+  sidebarBoxShadow?: string; // raw CSS box-shadow value; defaults to '-4px 0 24px rgba(0, 0, 0, 0.12)'
 };
 
 export type ButtonTheme = {

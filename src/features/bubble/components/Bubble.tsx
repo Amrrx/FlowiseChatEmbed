@@ -142,9 +142,9 @@ export const Bubble = (props: BubbleProps) => {
         width: `${sidebarWidth}px`,
         transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
         transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
-        'box-shadow': '-4px 0 24px rgba(0, 0, 0, 0.12)',
+        'box-shadow': bubbleProps.theme?.chatWindow?.sidebarBoxShadow ?? '-4px 0 24px rgba(0, 0, 0, 0.12)',
         border: 'none',
-        'border-left': '1px solid #d1d5db',
+        'border-left': `${bubbleProps.theme?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${bubbleProps.theme?.chatWindow?.sidebarBorderColor ?? '#d1d5db'}`,
         'z-index': 42424242,
         'border-radius': '0',
       };
@@ -235,6 +235,7 @@ export const Bubble = (props: BubbleProps) => {
               titleAvatarSrc={bubbleProps.theme?.chatWindow?.titleAvatarSrc}
               titleTextColor={bubbleProps.theme?.chatWindow?.titleTextColor}
               titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor ?? themeColor}
+              titleHeight={bubbleProps.theme?.chatWindow?.titleHeight}
               showWelcomeMessage={bubbleProps.theme?.chatWindow?.showWelcomeMessage}
               welcomeMessage={bubbleProps.theme?.chatWindow?.welcomeMessage}
               errorMessage={bubbleProps.theme?.chatWindow?.errorMessage}

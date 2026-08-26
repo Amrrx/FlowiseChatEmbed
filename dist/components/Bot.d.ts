@@ -116,6 +116,7 @@ export type BotProps = {
     titleAvatarSrc?: string;
     titleTextColor?: string;
     titleBackgroundColor?: string;
+    titleHeight?: number;
     formBackgroundColor?: string;
     formTextColor?: string;
     fontSize?: number;
