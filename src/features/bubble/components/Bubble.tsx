@@ -131,6 +131,8 @@ export const Bubble = (props: BubbleProps) => {
         transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
         transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
         'box-shadow': '-4px 0 24px rgba(0, 0, 0, 0.12)',
+        border: 'none',
+        'border-left': '1px solid rgba(0, 0, 0, 0.08)',
         'z-index': 42424242,
         'border-radius': '0',
       };
@@ -204,6 +206,7 @@ export const Bubble = (props: BubbleProps) => {
               </button>
             </Show>
             <Bot
+              isFullPage={isSidebarMode()}
               backgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
               formBackgroundColor={bubbleProps.theme?.form?.backgroundColor}
               formTextColor={bubbleProps.theme?.form?.textColor}

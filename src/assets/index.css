@@ -519,7 +519,10 @@ button {
   word-break: break-word;
   max-width: calc(100vw - 20px);
   font-size: var(--tooltip-font-size, 12px);
-  transition: opacity 0.3s ease-in-out;
+  transition:
+    opacity 0.3s ease-in-out,
+    right 0.2s,
+    bottom 0.2s;
 }
 
 @keyframes spin {
