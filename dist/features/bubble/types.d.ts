@@ -8,6 +8,7 @@ export type BubbleTheme = {
     disclaimer?: DisclaimerPopUpTheme;
     customCSS?: string;
     form?: FormTheme;
+    themeColor?: string;
 };
 export type FormTheme = {
     backgroundColor?: string;
@@ -89,6 +90,7 @@ export type ButtonTheme = {
     right?: number;
     dragAndDrop?: boolean;
     autoWindowOpen?: autoWindowOpenTheme;
+    hideLauncher?: boolean;
 };
 export type ToolTipTheme = {
     showTooltip?: boolean;

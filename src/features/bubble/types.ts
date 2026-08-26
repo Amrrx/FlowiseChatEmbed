@@ -9,6 +9,9 @@ export type BubbleTheme = {
   disclaimer?: DisclaimerPopUpTheme;
   customCSS?: string;
   form?: FormTheme;
+  // Optional single accent color (e.g. a host app's brand color). Used as a fallback
+  // for button/title/accent colors wherever a more specific color isn't set.
+  themeColor?: string;
 };
 
 export type FormTheme = {
@@ -98,6 +101,10 @@ export type ButtonTheme = {
   right?: number;
   dragAndDrop?: boolean; // parameter to enable drag and drop(true or false)
   autoWindowOpen?: autoWindowOpenTheme;
+  // When true, the built-in floating launcher button and tooltip are not rendered at
+  // all. Use this when the host page provides its own trigger and controls the panel
+  // via a 'flowise-toggle' CustomEvent dispatched on the <flowise-chatbot> element.
+  hideLauncher?: boolean;
 };
 
 export type ToolTipTheme = {

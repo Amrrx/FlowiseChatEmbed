@@ -89,6 +89,14 @@ export const Bubble = (props: BubbleProps) => {
     isBotOpened() ? closeBot() : openBot();
   };
 
+  // Lets a host page control the panel externally (e.g. its own toolbar button) even
+  // when the built-in launcher is hidden via theme.button.hideLauncher.
+  onMount(() => {
+    const onExternalToggle = () => toggleBot();
+    hostElement?.addEventListener('flowise-toggle', onExternalToggle);
+    onCleanup(() => hostElement?.removeEventListener('flowise-toggle', onExternalToggle));
+  });
+
   onCleanup(() => {
     setIsBotStarted(false);
   });
@@ -110,6 +118,10 @@ export const Bubble = (props: BubbleProps) => {
   });
 
   const showTooltip = bubbleProps.theme?.tooltip?.showTooltip ?? false;
+  const hideLauncher = bubbleProps.theme?.button?.hideLauncher ?? false;
+  // Single accent-color fallback (e.g. a host app's brand color) for the button/title/accent
+  // colors, used only where a more specific color isn't already set.
+  const themeColor = bubbleProps.theme?.themeColor;
 
   const backgroundStyle = {
     'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
@@ -132,7 +144,7 @@ export const Bubble = (props: BubbleProps) => {
         transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
         'box-shadow': '-4px 0 24px rgba(0, 0, 0, 0.12)',
         border: 'none',
-        'border-left': '1px solid rgba(0, 0, 0, 0.08)',
+        'border-left': '1px solid #d1d5db',
         'z-index': 42424242,
         'border-radius': '0',
       };
@@ -166,27 +178,30 @@ export const Bubble = (props: BubbleProps) => {
         <style>{props.theme?.customCSS}</style>
       </Show>
       <style>{styles}</style>
-      <Tooltip
-        showTooltip={showTooltip && !isBotOpened()}
-        position={buttonPosition()}
-        buttonSize={buttonSize}
-        tooltipMessage={bubbleProps.theme?.tooltip?.tooltipMessage}
-        tooltipBackgroundColor={bubbleProps.theme?.tooltip?.tooltipBackgroundColor}
-        tooltipTextColor={bubbleProps.theme?.tooltip?.tooltipTextColor}
-        tooltipFontSize={bubbleProps.theme?.tooltip?.tooltipFontSize} // Set the tooltip font size
-      />
-      <BubbleButton
-        {...bubbleProps.theme?.button}
-        toggleBot={toggleBot}
-        isBotOpened={isBotOpened()}
-        setButtonPosition={setButtonPosition}
-        dragAndDrop={bubbleProps.theme?.button?.dragAndDrop ?? false}
-        autoOpen={bubbleProps.theme?.button?.autoWindowOpen?.autoOpen ?? false}
-        openDelay={bubbleProps.theme?.button?.autoWindowOpen?.openDelay}
-        autoOpenOnMobile={bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile ?? false}
-        streamConnected={streamConnected()}
-        unreadCount={unreadCount()}
-      />
+      <Show when={!hideLauncher}>
+        <Tooltip
+          showTooltip={showTooltip && !isBotOpened()}
+          position={buttonPosition()}
+          buttonSize={buttonSize}
+          tooltipMessage={bubbleProps.theme?.tooltip?.tooltipMessage}
+          tooltipBackgroundColor={bubbleProps.theme?.tooltip?.tooltipBackgroundColor}
+          tooltipTextColor={bubbleProps.theme?.tooltip?.tooltipTextColor}
+          tooltipFontSize={bubbleProps.theme?.tooltip?.tooltipFontSize} // Set the tooltip font size
+        />
+        <BubbleButton
+          {...bubbleProps.theme?.button}
+          toggleBot={toggleBot}
+          isBotOpened={isBotOpened()}
+          setButtonPosition={setButtonPosition}
+          backgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor}
+          dragAndDrop={bubbleProps.theme?.button?.dragAndDrop ?? false}
+          autoOpen={bubbleProps.theme?.button?.autoWindowOpen?.autoOpen ?? false}
+          openDelay={bubbleProps.theme?.button?.autoWindowOpen?.openDelay}
+          autoOpenOnMobile={bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile ?? false}
+          streamConnected={streamConnected()}
+          unreadCount={unreadCount()}
+        />
+      </Show>
       <div part="bot" style={panelStyle()} class={panelClass()}>
         <Show when={isBotStarted()}>
           <div class="relative h-full">
@@ -211,7 +226,7 @@ export const Bubble = (props: BubbleProps) => {
               formBackgroundColor={bubbleProps.theme?.form?.backgroundColor}
               formTextColor={bubbleProps.theme?.form?.textColor}
               badgeBackgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
-              bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? defaultButtonColor}
+              bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor ?? defaultButtonColor}
               bubbleTextColor={bubbleProps.theme?.button?.iconColor ?? defaultIconColor}
               showTitle={bubbleProps.theme?.chatWindow?.showTitle}
               showAgentMessages={bubbleProps.theme?.chatWindow?.showAgentMessages}
@@ -219,14 +234,20 @@ export const Bubble = (props: BubbleProps) => {
               title_rtl={bubbleProps.theme?.chatWindow?.title_rtl}
               titleAvatarSrc={bubbleProps.theme?.chatWindow?.titleAvatarSrc}
               titleTextColor={bubbleProps.theme?.chatWindow?.titleTextColor}
-              titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor}
+              titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor ?? themeColor}
               showWelcomeMessage={bubbleProps.theme?.chatWindow?.showWelcomeMessage}
               welcomeMessage={bubbleProps.theme?.chatWindow?.welcomeMessage}
               errorMessage={bubbleProps.theme?.chatWindow?.errorMessage}
               poweredByTextColor={bubbleProps.theme?.chatWindow?.poweredByTextColor}
-              textInput={bubbleProps.theme?.chatWindow?.textInput}
+              textInput={{
+                ...bubbleProps.theme?.chatWindow?.textInput,
+                sendButtonColor: bubbleProps.theme?.chatWindow?.textInput?.sendButtonColor ?? themeColor,
+              }}
               botMessage={bubbleProps.theme?.chatWindow?.botMessage}
-              userMessage={bubbleProps.theme?.chatWindow?.userMessage}
+              userMessage={{
+                ...bubbleProps.theme?.chatWindow?.userMessage,
+                backgroundColor: bubbleProps.theme?.chatWindow?.userMessage?.backgroundColor ?? themeColor,
+              }}
               feedback={bubbleProps.theme?.chatWindow?.feedback}
               fontSize={bubbleProps.theme?.chatWindow?.fontSize}
               footer={bubbleProps.theme?.chatWindow?.footer}
