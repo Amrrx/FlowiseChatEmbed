@@ -50,6 +50,7 @@ export type FeedbackTheme = {
     color?: string;
 };
 export type ChatWindowTheme = {
+    layout?: 'floating' | 'sidebar';
     showTitle?: boolean;
     showAgentMessages?: boolean;
     title?: string;

@@ -1,4 +1,5 @@
-import { createSignal, Show, splitProps, onCleanup, createEffect } from 'solid-js';
+import { createSignal, Show, splitProps, onCleanup, createEffect, onMount } from 'solid-js';
+import { getCurrentElement } from 'solid-element';
 import styles from '../../../assets/index.css';
 import { BubbleButton } from './BubbleButton';
 import { BubbleParams } from '../types';
@@ -6,6 +7,8 @@ import { Bot, BotProps } from '../../../components/Bot';
 import Tooltip from './Tooltip';
 import { getBubbleButtonSize } from '@/utils';
 import { useAgUiStream } from '@/agui/useAgUiStream';
+
+const SIDEBAR_MIN_VIEWPORT_WIDTH = 768;
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
@@ -15,11 +18,38 @@ export type BubbleProps = BotProps & BubbleParams;
 export const Bubble = (props: BubbleProps) => {
   const [bubbleProps] = splitProps(props, ['theme']);
 
+  const hostElement = getCurrentElement();
+
   const [isBotOpened, setIsBotOpened] = createSignal(false);
   const [isBotStarted, setIsBotStarted] = createSignal(false);
   const [buttonPosition, setButtonPosition] = createSignal({
     bottom: bubbleProps.theme?.button?.bottom ?? 20,
     right: bubbleProps.theme?.button?.right ?? 20,
+  });
+
+  const [viewportWidth, setViewportWidth] = createSignal(window.innerWidth);
+  onMount(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    onCleanup(() => window.removeEventListener('resize', onResize));
+  });
+
+  // Sidebar mode docks the panel to the right edge and pushes the host page aside (like devtools).
+  // It only applies above the mobile breakpoint; smaller screens keep the floating overlay.
+  const sidebarWidth = bubbleProps.theme?.chatWindow?.width ?? 400;
+  const isSidebarMode = () => (bubbleProps.theme?.chatWindow?.layout ?? 'floating') === 'sidebar' && viewportWidth() >= SIDEBAR_MIN_VIEWPORT_WIDTH;
+
+  // Notify the host page so it can push its own layout aside — this widget renders in a
+  // Shadow DOM custom element and cannot resize the host page's layout by itself.
+  createEffect(() => {
+    const active = isSidebarMode() && isBotOpened();
+    hostElement?.dispatchEvent(
+      new CustomEvent('flowise-sidebar-toggle', {
+        bubbles: true,
+        composed: true,
+        detail: { open: active, width: active ? sidebarWidth : 0 },
+      }),
+    );
   });
 
   const {
@@ -81,6 +111,53 @@ export const Bubble = (props: BubbleProps) => {
 
   const showTooltip = bubbleProps.theme?.tooltip?.showTooltip ?? false;
 
+  const backgroundStyle = {
+    'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
+    'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
+    'background-size': 'cover',
+    'background-position': 'center',
+    'background-repeat': 'no-repeat',
+  };
+
+  const panelStyle = () => {
+    if (isSidebarMode()) {
+      return {
+        ...backgroundStyle,
+        top: '0',
+        bottom: '0',
+        right: '0',
+        height: '100vh',
+        width: `${sidebarWidth}px`,
+        transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
+        transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
+        'box-shadow': '-4px 0 24px rgba(0, 0, 0, 0.12)',
+        'z-index': 42424242,
+        'border-radius': '0',
+      };
+    }
+
+    return {
+      ...backgroundStyle,
+      height: bubbleProps.theme?.chatWindow?.height ? `${bubbleProps.theme?.chatWindow?.height.toString()}px` : 'calc(100% - 150px)',
+      width: bubbleProps.theme?.chatWindow?.width ? `${bubbleProps.theme?.chatWindow?.width.toString()}px` : undefined,
+      transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
+      'transform-origin': 'bottom right',
+      transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
+      'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
+      'z-index': 42424242,
+      'border-radius': '20px',
+      bottom: `${Math.min(buttonPosition().bottom + buttonSize + 10, window.innerHeight - chatWindowBottom)}px`,
+      right: `${Math.max(0, Math.min(buttonPosition().right, window.innerWidth - (bubbleProps.theme?.chatWindow?.width ?? 410) - 10))}px`,
+    };
+  };
+
+  const panelClass = () =>
+    isSidebarMode()
+      ? 'fixed inset-y-0 right-0 w-full sm:w-auto' + (isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none')
+      : `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` +
+        (isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none') +
+        ` bottom-${chatWindowBottom}px`;
+
   return (
     <>
       <Show when={props.theme?.customCSS}>
@@ -108,31 +185,7 @@ export const Bubble = (props: BubbleProps) => {
         streamConnected={streamConnected()}
         unreadCount={unreadCount()}
       />
-      <div
-        part="bot"
-        style={{
-          height: bubbleProps.theme?.chatWindow?.height ? `${bubbleProps.theme?.chatWindow?.height.toString()}px` : 'calc(100% - 150px)',
-          width: bubbleProps.theme?.chatWindow?.width ? `${bubbleProps.theme?.chatWindow?.width.toString()}px` : undefined,
-          transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
-          'transform-origin': 'bottom right',
-          transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
-          'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
-          'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
-          'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
-          'background-size': 'cover',
-          'background-position': 'center',
-          'background-repeat': 'no-repeat',
-          'z-index': 42424242,
-          'border-radius': '20px',
-          bottom: `${Math.min(buttonPosition().bottom + buttonSize + 10, window.innerHeight - chatWindowBottom)}px`,
-          right: `${Math.max(0, Math.min(buttonPosition().right, window.innerWidth - (bubbleProps.theme?.chatWindow?.width ?? 410) - 10))}px`,
-        }}
-        class={
-          `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` +
-          (isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none') +
-          ` bottom-${chatWindowBottom}px`
-        }
-      >
+      <div part="bot" style={panelStyle()} class={panelClass()}>
         <Show when={isBotStarted()}>
           <div class="relative h-full">
             <Show when={isBotOpened()}>

@@ -31,37 +31,68 @@ export const BubbleButton = (props: Props) => {
   const [userInteracted, setUserInteracted] = createSignal(false);
 
   let dragStartX: number;
+  let dragStartY: number;
   let initialRight: number;
+  let initialBottom: number;
 
-  const onMouseDown = (e: MouseEvent) => {
-    if (props.dragAndDrop) {
-      dragStartX = e.clientX;
-      initialRight = position().right;
+  const moveTo = (clientX: number, clientY: number) => {
+    const deltaX = dragStartX - clientX;
+    const deltaY = dragStartY - clientY;
 
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    }
-  };
-
-  const onMouseMove = (e: MouseEvent) => {
-    const deltaX = dragStartX - e.clientX;
-    const newRight = initialRight + deltaX;
-
-    const screenWidth = window.innerWidth;
-    const maxRight = screenWidth - buttonSize;
+    const maxRight = window.innerWidth - buttonSize;
+    const maxBottom = window.innerHeight - buttonSize;
 
     const newPosition = {
-      right: Math.min(Math.max(newRight, defaultRight), maxRight),
-      bottom: position().bottom,
+      right: Math.min(Math.max(initialRight + deltaX, defaultRight), maxRight),
+      bottom: Math.min(Math.max(initialBottom + deltaY, defaultBottom), maxBottom),
     };
 
     setPosition(newPosition);
     props.setButtonPosition(newPosition);
   };
 
+  const startDrag = (clientX: number, clientY: number) => {
+    dragStartX = clientX;
+    dragStartY = clientY;
+    initialRight = position().right;
+    initialBottom = position().bottom;
+  };
+
+  const onMouseDown = (e: MouseEvent) => {
+    if (props.dragAndDrop) {
+      startDrag(e.clientX, e.clientY);
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    }
+  };
+
+  const onMouseMove = (e: MouseEvent) => {
+    moveTo(e.clientX, e.clientY);
+  };
+
   const onMouseUp = () => {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
+  };
+
+  const onTouchStart = (e: TouchEvent) => {
+    if (props.dragAndDrop) {
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+      document.addEventListener('touchmove', onTouchMove, { passive: false });
+      document.addEventListener('touchend', onTouchEnd);
+    }
+  };
+
+  const onTouchMove = (e: TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    moveTo(touch.clientX, touch.clientY);
+  };
+
+  const onTouchEnd = () => {
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
   };
 
   const handleButtonClick = () => {
@@ -91,6 +122,7 @@ export const BubbleButton = (props: Props) => {
         part="button"
         onClick={handleButtonClick}
         onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
         class={`fixed rounded-full hover:scale-110 active:scale-95 transition-all duration-200 flex justify-center items-center animate-fade-in`}
         style={{
           'background-color': props.backgroundColor ?? defaultButtonColor,

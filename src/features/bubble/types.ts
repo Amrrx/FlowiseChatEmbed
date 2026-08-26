@@ -58,6 +58,7 @@ export type FeedbackTheme = {
 };
 
 export type ChatWindowTheme = {
+  layout?: 'floating' | 'sidebar'; // 'sidebar' docks the chat window to the right edge and pushes the host page aside (like devtools); defaults to 'floating'
   showTitle?: boolean;
   showAgentMessages?: boolean; // parameter to show agent reasonings when using agentflows
   title?: string;
