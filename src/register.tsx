@@ -7,5 +7,6 @@ export const registerWebComponents = () => {
   if (typeof window === 'undefined') return;
   // @ts-expect-error element incorect type
   customElement('flowise-fullchatbot', defaultBotProps, Full);
+  // @ts-expect-error element incorect type
   customElement('flowise-chatbot', defaultBotProps, Bubble);
 };

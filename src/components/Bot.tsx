@@ -203,6 +203,10 @@ export type BotProps = {
   formTextColor?: string;
   fontSize?: number;
   isFullPage?: boolean;
+  // Flattens the window's top corners without adopting full-page behaviour
+  // (which also suppresses the disclaimer's deny button and halves audio previews).
+  squareCorners?: boolean;
+  titleHeight?: number; // px; falls back to the stylesheet's 56px when unset
   footer?: FooterTheme;
   sourceDocsTitle?: string;
   observersConfig?: observersConfigType;
@@ -3339,12 +3343,13 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
           {props.showTitle ? (
             <div
-              class="flex flex-row items-center w-full h-[56px] absolute top-0 left-0 z-10"
+              class={'flex flex-row items-center w-full absolute top-0 left-0 z-10' + (props.titleHeight ? '' : ' h-[56px]')}
               style={{
+                ...(props.titleHeight ? { height: `${props.titleHeight}px` } : {}),
                 background: props.titleBackgroundColor || props.bubbleBackgroundColor || defaultTitleBackgroundColor,
                 color: props.titleTextColor || props.bubbleTextColor || defaultBackgroundColor,
-                'border-top-left-radius': props.isFullPage ? '0px' : '20px',
-                'border-top-right-radius': props.isFullPage ? '0px' : '20px',
+                'border-top-left-radius': props.isFullPage || props.squareCorners ? '0px' : '20px',
+                'border-top-right-radius': props.isFullPage || props.squareCorners ? '0px' : '20px',
                 'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               }}
             >
@@ -3398,7 +3403,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           <div class="flex flex-col w-full h-full justify-start z-0">
             <div
               ref={chatContainer}
-              class="overflow-y-scroll flex flex-col flex-grow min-w-full w-full px-3 pt-[70px] relative scrollable-container chatbot-chat-view scroll-smooth"
+              class={
+                'overflow-y-scroll flex flex-col flex-grow min-w-full w-full px-3 relative scrollable-container chatbot-chat-view scroll-smooth' +
+                (props.titleHeight ? '' : ' pt-[70px]')
+              }
+              style={props.titleHeight ? { 'padding-top': `${props.titleHeight + 14}px` } : undefined}
             >
               <For each={[...messages()]}>
                 {(message, index) => {
