@@ -121,6 +121,8 @@ export type BotProps = {
     formTextColor?: string;
     fontSize?: number;
     isFullPage?: boolean;
+    squareCorners?: boolean;
+    titleHeight?: number;
     footer?: FooterTheme;
     sourceDocsTitle?: string;
     observersConfig?: observersConfigType;
