@@ -7,11 +7,10 @@ type Props = ButtonTheme & {
         right: number;
     }) => void;
     dragAndDrop: boolean;
-    autoOpen?: boolean;
-    openDelay?: number;
-    autoOpenOnMobile?: boolean;
+    chatflowid?: string;
     streamConnected?: boolean;
     unreadCount?: number;
+    announcementUnread?: number;
 };
 export declare const BubbleButton: (props: Props) => import("solid-js").JSX.Element;
 export {};

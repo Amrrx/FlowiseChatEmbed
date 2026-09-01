@@ -10,6 +10,7 @@ export type FullProps = BotProps & BubbleParams;
 
 export const Full = (props: FullProps, { element }: { element: HTMLElement }) => {
   const [isBotDisplayed, setIsBotDisplayed] = createSignal(false);
+  const [announceHost, setAnnounceHost] = createSignal<HTMLDivElement>();
 
   const launchBot = () => {
     setIsBotDisplayed(true);
@@ -49,6 +50,7 @@ export const Full = (props: FullProps, { element }: { element: HTMLElement }) =>
         <style>{props.theme?.customCSS}</style>
       </Show>
       <style>{styles}</style>
+      <div ref={setAnnounceHost} />
       <Show when={isBotDisplayed()}>
         <div
           style={{
@@ -99,6 +101,7 @@ export const Full = (props: FullProps, { element }: { element: HTMLElement }) =>
             dateTimeToggle={props.theme?.chatWindow?.dateTimeToggle}
             renderHTML={props.theme?.chatWindow?.renderHTML}
             autoMessage={props.theme?.chatWindow?.autoMessage}
+            overlayMount={announceHost}
           />
         </div>
       </Show>

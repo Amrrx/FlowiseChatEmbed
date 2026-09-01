@@ -9,8 +9,7 @@ export type BubbleTheme = {
   disclaimer?: DisclaimerPopUpTheme;
   customCSS?: string;
   form?: FormTheme;
-  // Optional single accent color (e.g. a host app's brand color). Used as a fallback
-  // for button/title/accent colors wherever a more specific color isn't set.
+  // Single accent color used as a fallback wherever a more specific color isn't set.
   themeColor?: string;
 };
 
@@ -61,7 +60,10 @@ export type FeedbackTheme = {
 };
 
 export type ChatWindowTheme = {
-  layout?: 'floating' | 'sidebar'; // 'sidebar' docks the chat window to the right edge and pushes the host page aside (like devtools); defaults to 'floating'
+  // 'sidebar' docks the chat window to the right edge full-height and emits
+  // 'flowise-sidebar-toggle' so the host page can push its own layout aside.
+  // Falls back to 'floating' below 768px viewport width. Defaults to 'floating'.
+  layout?: 'floating' | 'sidebar';
   showTitle?: boolean;
   showAgentMessages?: boolean; // parameter to show agent reasonings when using agentflows
   title?: string;
@@ -69,7 +71,7 @@ export type ChatWindowTheme = {
   titleAvatarSrc?: string;
   titleTextColor?: string;
   titleBackgroundColor?: string;
-  titleHeight?: number; // custom title bar height in pixels; defaults to 56 (lets a host match its own header height)
+  titleHeight?: number; // px; defaults to 56, lets a host match its own header height
   showWelcomeMessage?: boolean;
   welcomeMessage?: string;
   errorMessage?: string;
@@ -91,11 +93,10 @@ export type ChatWindowTheme = {
   dateTimeToggle?: DateTimeToggleTheme;
   renderHTML?: boolean;
   autoMessage?: AutoMessageTheme;
-  // Sidebar-mode-only edge styling (layout: 'sidebar'); lets a host app match its own
-  // design system instead of using the built-in defaults.
+  // Edge styling applied only when layout is 'sidebar'.
   sidebarBorderWidth?: number; // px; defaults to 1
   sidebarBorderColor?: string; // defaults to #d1d5db
-  sidebarBoxShadow?: string; // raw CSS box-shadow value; defaults to '-4px 0 24px rgba(0, 0, 0, 0.12)'
+  sidebarBoxShadow?: string; // raw CSS box-shadow; defaults to '-4px 0 24px rgba(0, 0, 0, 0.12)'
 };
 
 export type ButtonTheme = {
@@ -107,9 +108,9 @@ export type ButtonTheme = {
   right?: number;
   dragAndDrop?: boolean; // parameter to enable drag and drop(true or false)
   autoWindowOpen?: autoWindowOpenTheme;
-  // When true, the built-in floating launcher button and tooltip are not rendered at
-  // all. Use this when the host page provides its own trigger and controls the panel
-  // via a 'flowise-toggle' CustomEvent dispatched on the <flowise-chatbot> element.
+  // Suppress the built-in launcher and tooltip. The host page supplies its own
+  // trigger and opens the panel with a 'flowise-toggle' CustomEvent dispatched
+  // on the <flowise-chatbot> element. autoWindowOpen still applies.
   hideLauncher?: boolean;
 };
 

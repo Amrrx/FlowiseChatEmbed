@@ -1,5 +1,4 @@
-import { createSignal, Show, splitProps, onCleanup, createEffect, onMount } from 'solid-js';
-import { getCurrentElement } from 'solid-element';
+import { createSignal, Show, splitProps, onCleanup, onMount, createEffect } from 'solid-js';
 import styles from '../../../assets/index.css';
 import { BubbleButton } from './BubbleButton';
 import { BubbleParams } from '../types';
@@ -7,49 +6,31 @@ import { Bot, BotProps } from '../../../components/Bot';
 import Tooltip from './Tooltip';
 import { getBubbleButtonSize } from '@/utils';
 import { useAgUiStream } from '@/agui/useAgUiStream';
-
-const SIDEBAR_MIN_VIEWPORT_WIDTH = 768;
+import { createAnnouncements } from '@/components/AnnouncementsButton';
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
+// Below this viewport width sidebar mode falls back to the floating overlay —
+// a docked panel leaves too little room for the host page on small screens.
+const sidebarMinViewportWidth = 768;
+const defaultSidebarWidth = 400;
+const minSidebarWidth = 240;
 
 export type BubbleProps = BotProps & BubbleParams;
 
-export const Bubble = (props: BubbleProps) => {
+export const Bubble = (props: BubbleProps, { element: hostElement }: { element: HTMLElement }) => {
   const [bubbleProps] = splitProps(props, ['theme']);
-
-  const hostElement = getCurrentElement();
 
   const [isBotOpened, setIsBotOpened] = createSignal(false);
   const [isBotStarted, setIsBotStarted] = createSignal(false);
+  // Set once the visitor opens or closes the panel themselves; suppresses auto-open.
+  const [userInteracted, setUserInteracted] = createSignal(false);
+  // Anchor for the announcement overlay — sits at the bubble root, outside the
+  // chat window's `scale3d` transform, so a fixed overlay covers the full viewport.
+  const [announceHost, setAnnounceHost] = createSignal<HTMLDivElement>();
   const [buttonPosition, setButtonPosition] = createSignal({
     bottom: bubbleProps.theme?.button?.bottom ?? 20,
     right: bubbleProps.theme?.button?.right ?? 20,
-  });
-
-  const [viewportWidth, setViewportWidth] = createSignal(window.innerWidth);
-  onMount(() => {
-    const onResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    onCleanup(() => window.removeEventListener('resize', onResize));
-  });
-
-  // Sidebar mode docks the panel to the right edge and pushes the host page aside (like devtools).
-  // It only applies above the mobile breakpoint; smaller screens keep the floating overlay.
-  const sidebarWidth = bubbleProps.theme?.chatWindow?.width ?? 400;
-  const isSidebarMode = () => (bubbleProps.theme?.chatWindow?.layout ?? 'floating') === 'sidebar' && viewportWidth() >= SIDEBAR_MIN_VIEWPORT_WIDTH;
-
-  // Notify the host page so it can push its own layout aside — this widget renders in a
-  // Shadow DOM custom element and cannot resize the host page's layout by itself.
-  createEffect(() => {
-    const active = isSidebarMode() && isBotOpened();
-    hostElement?.dispatchEvent(
-      new CustomEvent('flowise-sidebar-toggle', {
-        bubbles: true,
-        composed: true,
-        detail: { open: active, width: active ? sidebarWidth : 0 },
-      }),
-    );
   });
 
   const {
@@ -71,6 +52,15 @@ export const Bubble = (props: BubbleProps) => {
     isBotVisible: isBotOpened,
   });
 
+  // Owned here (not in the header button) so the closed launcher can react to an
+  // unread announcement before the chat is ever opened. Shared into Bot, so the
+  // header button and the bubble motion read one signal.
+  const announce = createAnnouncements({
+    apiHost: () => props.apiHost ?? '',
+    userId: () => ((props.chatflowConfig?.vars as any)?.userId as string) ?? '',
+    registerStreamHandler,
+  });
+
   const openBot = () => {
     if (!isBotStarted()) setIsBotStarted(true);
     setIsBotOpened(true);
@@ -86,24 +76,274 @@ export const Bubble = (props: BubbleProps) => {
   };
 
   const toggleBot = () => {
+    setUserInteracted(true);
     isBotOpened() ? closeBot() : openBot();
   };
-
-  // Lets a host page control the panel externally (e.g. its own toolbar button) even
-  // when the built-in launcher is hidden via theme.button.hideLauncher.
-  onMount(() => {
-    const onExternalToggle = () => toggleBot();
-    hostElement?.addEventListener('flowise-toggle', onExternalToggle);
-    onCleanup(() => hostElement?.removeEventListener('flowise-toggle', onExternalToggle));
-  });
 
   onCleanup(() => {
     setIsBotStarted(false);
   });
 
+  // Read through functions, never plain consts: `theme` is a reactive prop and
+  // init() re-assigns it on an already-mounted element, so a value snapshotted
+  // during setup would never repaint.
+  const [viewportWidth, setViewportWidth] = createSignal(window.innerWidth);
+  onMount(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    onCleanup(() => window.removeEventListener('resize', onResize));
+  });
+
+  const layout = () => bubbleProps.theme?.chatWindow?.layout ?? 'floating';
+  const isSidebarMode = () => layout() === 'sidebar' && viewportWidth() >= sidebarMinViewportWidth;
+  // Clamped so a misconfigured width can't render a degenerate panel or hand the
+  // host a margin that doesn't match what was drawn.
+  const sidebarWidth = () => Math.max(minSidebarWidth, Math.min(bubbleProps.theme?.chatWindow?.width ?? defaultSidebarWidth, viewportWidth()));
+  const hideLauncher = () => bubbleProps.theme?.button?.hideLauncher ?? false;
+  const themeColor = () => bubbleProps.theme?.themeColor;
+
+  const backgroundStyle = () => ({
+    'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
+    'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
+    'background-size': 'cover',
+    'background-position': 'center',
+    'background-repeat': 'no-repeat',
+  });
+
+  // Tell the host page how much room the docked panel occupies so it can push its
+  // own layout aside — this widget lives in a Shadow DOM custom element and cannot
+  // reflow the host by itself. Dispatched on `document` rather than the host
+  // element: on teardown the element is already detached, so a bubbling event from
+  // it would never reach a document-level listener and the host would stay indented.
+  const emitSidebarState = (open: boolean) => {
+    document.dispatchEvent(new CustomEvent('flowise-sidebar-toggle', { detail: { open, width: open ? sidebarWidth() : 0 } }));
+  };
+
+  createEffect(() => emitSidebarState(isSidebarMode() && isBotOpened()));
+  onCleanup(() => emitSidebarState(false));
+
+  // Host-supplied trigger, for embeds that hide the built-in launcher.
+  onMount(() => {
+    if (!hostElement) return;
+    const onExternalToggle = (e: Event) => {
+      const open = (e as CustomEvent)?.detail?.open;
+      setUserInteracted(true);
+      if (open === true) openBot();
+      else if (open === false) closeBot();
+      else toggleBot();
+    };
+    hostElement.addEventListener('flowise-toggle', onExternalToggle);
+    onCleanup(() => hostElement.removeEventListener('flowise-toggle', onExternalToggle));
+  });
+
+  // Owned here rather than in BubbleButton so that hiding the launcher does not
+  // silently disable auto-open. Calls openBot() directly — going through
+  // toggleBot() would mark the open as a user interaction and suppress itself.
+  createEffect(() => {
+    if (!bubbleProps.theme?.button?.autoWindowOpen?.autoOpen) return;
+    const onMobile = window.innerWidth <= 640;
+    if (onMobile && !bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile) return;
+
+    const delay = (bubbleProps.theme?.button?.autoWindowOpen?.openDelay ?? 2) * 1000;
+    const timer = setTimeout(() => {
+      if (!isBotOpened() && !userInteracted()) openBot();
+    }, delay);
+    onCleanup(() => clearTimeout(timer));
+  });
+
   const buttonSize = getBubbleButtonSize(props.theme?.button?.size); // Default to 48px if size is not provided
   const buttonBottom = props.theme?.button?.bottom ?? 20;
   const chatWindowBottom = buttonBottom + buttonSize + 10; // Adjust the offset here for slight shift
+  const windowGap = 10;
+  const minChatSize = 300;
+  const sizeMargin = 20;
+
+  // Which screen corner the button occupies — the single source of truth for how the
+  // window unfolds, where the resize grip sits, and which way a resize drag grows.
+  const anchorFlags = () => {
+    const pos = buttonPosition();
+    return {
+      nearRight: pos.right + buttonSize / 2 < window.innerWidth / 2,
+      nearBottom: pos.bottom + buttonSize / 2 < window.innerHeight / 2,
+    };
+  };
+
+  // Unfold the chat window from whichever corner the button occupies: upward from a
+  // bottom corner, downward from a top corner, and horizontally toward screen center.
+  const windowAnchor = () => {
+    const pos = buttonPosition();
+    const { nearRight, nearBottom } = anchorFlags();
+    const buttonTop = window.innerHeight - pos.bottom - buttonSize;
+    const buttonLeft = window.innerWidth - pos.right - buttonSize;
+
+    return {
+      right: nearRight ? `${Math.max(0, pos.right)}px` : 'auto',
+      left: nearRight ? 'auto' : `${Math.max(0, buttonLeft)}px`,
+      bottom: nearBottom ? `${pos.bottom + buttonSize + windowGap}px` : 'auto',
+      top: nearBottom ? 'auto' : `${buttonTop + buttonSize + windowGap}px`,
+      'transform-origin': `${nearBottom ? 'bottom' : 'top'} ${nearRight ? 'right' : 'left'}`,
+    };
+  };
+
+  // Drag-to-resize: persisted per chatflow, applied on desktop only.
+  const sizeStorageKey = () => (props.chatflowid ? `${props.chatflowid}_CHAT_SIZE` : null);
+
+  const readPersistedSize = () => {
+    const key = sizeStorageKey();
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.width === 'number' && typeof parsed?.height === 'number') {
+        return { width: parsed.width, height: parsed.height };
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  };
+
+  const persistChatSize = (size: { width: number; height: number }) => {
+    const key = sizeStorageKey();
+    if (!key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(size));
+    } catch (e) {
+      return;
+    }
+  };
+
+  const [chatSize, setChatSize] = createSignal<{ width: number; height: number } | null>(readPersistedSize());
+
+  let windowRef: HTMLDivElement | undefined;
+  let resizeStartX = 0;
+  let resizeStartY = 0;
+  let resizeStartW = 0;
+  let resizeStartH = 0;
+  let resizeNearRight = true;
+  let resizeNearBottom = true;
+
+  const onResizePointerDown = (e: PointerEvent) => {
+    if (!windowRef) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = windowRef.getBoundingClientRect();
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    resizeStartW = rect.width;
+    resizeStartH = rect.height;
+    const flags = anchorFlags();
+    resizeNearRight = flags.nearRight;
+    resizeNearBottom = flags.nearBottom;
+    document.addEventListener('pointermove', onResizePointerMove);
+    document.addEventListener('pointerup', onResizePointerUp);
+  };
+
+  const onResizePointerMove = (e: PointerEvent) => {
+    // Grow toward screen center: the sign follows the anchored corner.
+    const deltaW = resizeNearRight ? resizeStartX - e.clientX : e.clientX - resizeStartX;
+    const deltaH = resizeNearBottom ? resizeStartY - e.clientY : e.clientY - resizeStartY;
+    setChatSize({
+      width: Math.min(Math.max(resizeStartW + deltaW, minChatSize), window.innerWidth - sizeMargin),
+      height: Math.min(Math.max(resizeStartH + deltaH, minChatSize), window.innerHeight - sizeMargin),
+    });
+  };
+
+  const onResizePointerUp = () => {
+    document.removeEventListener('pointermove', onResizePointerMove);
+    document.removeEventListener('pointerup', onResizePointerUp);
+    const size = chatSize();
+    if (size) persistChatSize(size);
+  };
+
+  // A resized size overrides theme/default dimensions and the max-height cap, desktop only.
+  const sizeStyle = () => {
+    const size = window.innerWidth > 640 ? chatSize() : null;
+    const themeHeight = bubbleProps.theme?.chatWindow?.height;
+    const themeWidth = bubbleProps.theme?.chatWindow?.width;
+    return {
+      width: size ? `${size.width}px` : themeWidth ? `${themeWidth.toString()}px` : undefined,
+      height: size ? `${size.height}px` : themeHeight ? `${themeHeight.toString()}px` : 'calc(100% - 150px)',
+      'max-height': size ? `${window.innerHeight - sizeMargin}px` : undefined,
+    };
+  };
+
+  // Grip hugs the inner corner (opposite the button's anchor), flush with the window's
+  // rounded corner so it reads as part of the corner rather than a floating chip.
+  const gripStyle = () => {
+    const { nearRight, nearBottom } = anchorFlags();
+    const vSide = nearBottom ? 'top' : 'bottom';
+    const hSide = nearRight ? 'left' : 'right';
+    const oppV = nearBottom ? 'bottom' : 'top';
+    const oppH = nearRight ? 'right' : 'left';
+    return {
+      position: 'absolute' as const,
+      [vSide]: '0px',
+      [hSide]: '0px',
+      [`border-${vSide}-${hSide}-radius`]: '18px',
+      [`border-${oppV}-${oppH}-radius`]: '9px',
+      // width: '22px',
+      // height: '22px',
+      padding: '2px',
+      overflow: 'hidden',
+      background: 'rgba(255, 255, 255, 0.55)',
+      'box-shadow': '0 1px 3px rgba(0, 0, 0, 0.12)',
+      'align-items': nearBottom ? 'flex-start' : 'flex-end',
+      'justify-content': nearRight ? 'flex-start' : 'flex-end',
+      cursor: nearBottom === nearRight ? 'nwse-resize' : 'nesw-resize',
+      'z-index': 60,
+      'touch-action': 'none',
+    };
+  };
+
+  // Rotate the grip glyph so its diagonal always points outward toward its own corner.
+  const gripRotation = () => {
+    const { nearRight, nearBottom } = anchorFlags();
+    return nearBottom ? (nearRight ? 180 : 270) : nearRight ? 90 : 0;
+  };
+
+  // Sidebar docks to the right edge full-height and slides in horizontally; floating
+  // keeps the corner-anchored, resizable window that unfolds from the button.
+  const panelStyle = () => {
+    if (isSidebarMode()) {
+      return {
+        ...backgroundStyle(),
+        top: '0',
+        bottom: '0',
+        right: '0',
+        left: 'auto',
+        height: '100vh',
+        'max-height': 'none',
+        width: `${sidebarWidth()}px`,
+        transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
+        transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
+        'box-shadow': bubbleProps.theme?.chatWindow?.sidebarBoxShadow ?? '-4px 0 24px rgba(0, 0, 0, 0.12)',
+        'border-left': `${bubbleProps.theme?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${
+          bubbleProps.theme?.chatWindow?.sidebarBorderColor ?? '#d1d5db'
+        }`,
+        'border-radius': '0',
+        'z-index': 42424242,
+      };
+    }
+
+    return {
+      ...sizeStyle(),
+      ...backgroundStyle(),
+      transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
+      transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
+      'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
+      'z-index': 42424242,
+      'border-radius': '20px',
+      ...windowAnchor(),
+    };
+  };
+
+  const panelClass = () => {
+    const visibility = isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none';
+    if (isSidebarMode()) return 'fixed inset-y-0 right-0' + visibility;
+    return `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` + visibility + ` bottom-${chatWindowBottom}px`;
+  };
 
   // Add viewport meta tag dynamically
   createEffect(() => {
@@ -118,59 +358,6 @@ export const Bubble = (props: BubbleProps) => {
   });
 
   const showTooltip = bubbleProps.theme?.tooltip?.showTooltip ?? false;
-  const hideLauncher = bubbleProps.theme?.button?.hideLauncher ?? false;
-  // Single accent-color fallback (e.g. a host app's brand color) for the button/title/accent
-  // colors, used only where a more specific color isn't already set.
-  const themeColor = bubbleProps.theme?.themeColor;
-
-  const backgroundStyle = {
-    'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
-    'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
-    'background-size': 'cover',
-    'background-position': 'center',
-    'background-repeat': 'no-repeat',
-  };
-
-  const panelStyle = () => {
-    if (isSidebarMode()) {
-      return {
-        ...backgroundStyle,
-        top: '0',
-        bottom: '0',
-        right: '0',
-        height: '100vh',
-        width: `${sidebarWidth}px`,
-        transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
-        transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
-        'box-shadow': bubbleProps.theme?.chatWindow?.sidebarBoxShadow ?? '-4px 0 24px rgba(0, 0, 0, 0.12)',
-        border: 'none',
-        'border-left': `${bubbleProps.theme?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${bubbleProps.theme?.chatWindow?.sidebarBorderColor ?? '#d1d5db'}`,
-        'z-index': 42424242,
-        'border-radius': '0',
-      };
-    }
-
-    return {
-      ...backgroundStyle,
-      height: bubbleProps.theme?.chatWindow?.height ? `${bubbleProps.theme?.chatWindow?.height.toString()}px` : 'calc(100% - 150px)',
-      width: bubbleProps.theme?.chatWindow?.width ? `${bubbleProps.theme?.chatWindow?.width.toString()}px` : undefined,
-      transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
-      'transform-origin': 'bottom right',
-      transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
-      'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
-      'z-index': 42424242,
-      'border-radius': '20px',
-      bottom: `${Math.min(buttonPosition().bottom + buttonSize + 10, window.innerHeight - chatWindowBottom)}px`,
-      right: `${Math.max(0, Math.min(buttonPosition().right, window.innerWidth - (bubbleProps.theme?.chatWindow?.width ?? 410) - 10))}px`,
-    };
-  };
-
-  const panelClass = () =>
-    isSidebarMode()
-      ? 'fixed inset-y-0 right-0 w-full sm:w-auto' + (isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none')
-      : `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` +
-        (isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none') +
-        ` bottom-${chatWindowBottom}px`;
 
   return (
     <>
@@ -178,7 +365,8 @@ export const Bubble = (props: BubbleProps) => {
         <style>{props.theme?.customCSS}</style>
       </Show>
       <style>{styles}</style>
-      <Show when={!hideLauncher}>
+      <div ref={setAnnounceHost} />
+      <Show when={!hideLauncher()}>
         <Tooltip
           showTooltip={showTooltip && !isBotOpened()}
           position={buttonPosition()}
@@ -193,16 +381,27 @@ export const Bubble = (props: BubbleProps) => {
           toggleBot={toggleBot}
           isBotOpened={isBotOpened()}
           setButtonPosition={setButtonPosition}
-          backgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor}
+          backgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor()}
           dragAndDrop={bubbleProps.theme?.button?.dragAndDrop ?? false}
-          autoOpen={bubbleProps.theme?.button?.autoWindowOpen?.autoOpen ?? false}
-          openDelay={bubbleProps.theme?.button?.autoWindowOpen?.openDelay}
-          autoOpenOnMobile={bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile ?? false}
+          chatflowid={props.chatflowid}
           streamConnected={streamConnected()}
           unreadCount={unreadCount()}
+          announcementUnread={announce.unreadCount()}
         />
       </Show>
-      <div part="bot" style={panelStyle()} class={panelClass()}>
+      <div part="bot" ref={windowRef} style={panelStyle()} class={panelClass()}>
+        <Show when={isBotOpened() && !isSidebarMode()}>
+          <div
+            class="hidden sm:flex opacity-90 hover:opacity-100 transition-opacity duration-150"
+            style={gripStyle()}
+            onPointerDown={onResizePointerDown}
+            title="Drag to resize"
+          >
+            <svg viewBox="0 0 18 18" width="15" height="15" style={{ transform: `rotate(${gripRotation()}deg)` }}>
+              <path d="M14 6 L6 14 M14 10 L10 14" stroke="#334155" stroke-width="1.8" stroke-linecap="round" fill="none" />
+            </svg>
+          </div>
+        </Show>
         <Show when={isBotStarted()}>
           <div class="relative h-full">
             <Show when={isBotOpened()}>
@@ -221,34 +420,31 @@ export const Bubble = (props: BubbleProps) => {
               </button>
             </Show>
             <Bot
-              isFullPage={isSidebarMode()}
               backgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
               formBackgroundColor={bubbleProps.theme?.form?.backgroundColor}
               formTextColor={bubbleProps.theme?.form?.textColor}
               badgeBackgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
-              bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor ?? defaultButtonColor}
+              bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor() ?? defaultButtonColor}
               bubbleTextColor={bubbleProps.theme?.button?.iconColor ?? defaultIconColor}
+              squareCorners={isSidebarMode()}
+              titleHeight={bubbleProps.theme?.chatWindow?.titleHeight}
               showTitle={bubbleProps.theme?.chatWindow?.showTitle}
               showAgentMessages={bubbleProps.theme?.chatWindow?.showAgentMessages}
               title={bubbleProps.theme?.chatWindow?.title}
               title_rtl={bubbleProps.theme?.chatWindow?.title_rtl}
               titleAvatarSrc={bubbleProps.theme?.chatWindow?.titleAvatarSrc}
               titleTextColor={bubbleProps.theme?.chatWindow?.titleTextColor}
-              titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor ?? themeColor}
-              titleHeight={bubbleProps.theme?.chatWindow?.titleHeight}
+              titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor}
               showWelcomeMessage={bubbleProps.theme?.chatWindow?.showWelcomeMessage}
               welcomeMessage={bubbleProps.theme?.chatWindow?.welcomeMessage}
               errorMessage={bubbleProps.theme?.chatWindow?.errorMessage}
               poweredByTextColor={bubbleProps.theme?.chatWindow?.poweredByTextColor}
               textInput={{
                 ...bubbleProps.theme?.chatWindow?.textInput,
-                sendButtonColor: bubbleProps.theme?.chatWindow?.textInput?.sendButtonColor ?? themeColor,
+                sendButtonColor: bubbleProps.theme?.chatWindow?.textInput?.sendButtonColor ?? themeColor(),
               }}
               botMessage={bubbleProps.theme?.chatWindow?.botMessage}
-              userMessage={{
-                ...bubbleProps.theme?.chatWindow?.userMessage,
-                backgroundColor: bubbleProps.theme?.chatWindow?.userMessage?.backgroundColor ?? themeColor,
-              }}
+              userMessage={bubbleProps.theme?.chatWindow?.userMessage}
               feedback={bubbleProps.theme?.chatWindow?.feedback}
               fontSize={bubbleProps.theme?.chatWindow?.fontSize}
               footer={bubbleProps.theme?.chatWindow?.footer}
@@ -278,6 +474,9 @@ export const Bubble = (props: BubbleProps) => {
               refreshUnread={refreshUnread}
               pendingBotMessages={pendingBotMessages}
               consumePendingBotMessages={consumePendingBotMessages}
+              overlayMount={announceHost}
+              announceController={announce}
+              chatOpened={isBotOpened}
             />
           </div>
         </Show>

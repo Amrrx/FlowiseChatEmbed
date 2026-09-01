@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Show } from 'solid-js';
+import { createSignal, createEffect, onMount, on, Show } from 'solid-js';
 import { isNotDefined, getBubbleButtonSize } from '@/utils/index';
 import { ButtonTheme } from '../types';
 
@@ -7,122 +7,155 @@ type Props = ButtonTheme & {
   toggleBot: () => void;
   setButtonPosition: (position: { bottom: number; right: number }) => void;
   dragAndDrop: boolean;
-  autoOpen?: boolean; // Optional parameter to control automatic window opening
-  openDelay?: number; // Optional parameter for delay time in seconds
-  autoOpenOnMobile?: boolean; // Optional parameter for opening on mobile
+  chatflowid?: string; // Used to key the persisted drag position per chatflow
   streamConnected?: boolean;
   unreadCount?: number;
+  announcementUnread?: number;
 };
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
 const defaultBottom = 20;
 const defaultRight = 20;
+const edgeMargin = 10;
+const dragThreshold = 5; // Pixels moved before a press counts as a drag, not a click
 
 export const BubbleButton = (props: Props) => {
   const buttonSize = getBubbleButtonSize(props.size);
 
-  const [position, setPosition] = createSignal({
-    bottom: props.bottom ?? defaultBottom,
-    right: props.right ?? defaultRight,
-  });
+  const storageKey = () => (props.chatflowid ? `${props.chatflowid}_BUBBLE_POS` : null);
+
+  const readPersistedPosition = () => {
+    const key = storageKey();
+    if (!key) return null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (typeof parsed?.right === 'number' && typeof parsed?.bottom === 'number') {
+        return { right: parsed.right, bottom: parsed.bottom };
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  };
+
+  const persistPosition = (pos: { bottom: number; right: number }) => {
+    const key = storageKey();
+    if (!key) return;
+    try {
+      localStorage.setItem(key, JSON.stringify(pos));
+    } catch (e) {
+      return;
+    }
+  };
+
+  // Restore a saved position only while dragging is enabled; otherwise fall back to defaults.
+  const restoredPosition = props.dragAndDrop ? readPersistedPosition() : null;
+
+  const [position, setPosition] = createSignal(
+    restoredPosition ?? {
+      bottom: props.bottom ?? defaultBottom,
+      right: props.right ?? defaultRight,
+    },
+  );
 
   const [isSmallScreen, setIsSmallScreen] = createSignal(false);
-  const [userInteracted, setUserInteracted] = createSignal(false);
 
-  let dragStartX: number;
-  let dragStartY: number;
-  let initialRight: number;
-  let initialBottom: number;
+  // Sync the chat window anchor to the restored position before the first open.
+  onMount(() => {
+    if (restoredPosition) props.setButtonPosition(restoredPosition);
+  });
 
-  const moveTo = (clientX: number, clientY: number) => {
-    const deltaX = dragStartX - clientX;
-    const deltaY = dragStartY - clientY;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let initialRight = 0;
+  let initialBottom = 0;
+  let wasDragged = false;
 
-    const maxRight = window.innerWidth - buttonSize;
-    const maxBottom = window.innerHeight - buttonSize;
+  const onPointerDown = (e: PointerEvent) => {
+    // Dragging is only allowed while the chat window is closed.
+    if (!props.dragAndDrop || props.isBotOpened) return;
+
+    wasDragged = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    initialRight = position().right;
+    initialBottom = position().bottom;
+
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp);
+  };
+
+  const onPointerMove = (e: PointerEvent) => {
+    const deltaX = dragStartX - e.clientX;
+    const deltaY = dragStartY - e.clientY;
+
+    if (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold) {
+      wasDragged = true;
+    }
+
+    const maxRight = window.innerWidth - buttonSize - edgeMargin;
+    const maxBottom = window.innerHeight - buttonSize - edgeMargin;
 
     const newPosition = {
-      right: Math.min(Math.max(initialRight + deltaX, defaultRight), maxRight),
-      bottom: Math.min(Math.max(initialBottom + deltaY, defaultBottom), maxBottom),
+      right: Math.min(Math.max(initialRight + deltaX, edgeMargin), maxRight),
+      bottom: Math.min(Math.max(initialBottom + deltaY, edgeMargin), maxBottom),
     };
 
     setPosition(newPosition);
     props.setButtonPosition(newPosition);
   };
 
-  const startDrag = (clientX: number, clientY: number) => {
-    dragStartX = clientX;
-    dragStartY = clientY;
-    initialRight = position().right;
-    initialBottom = position().bottom;
+  const onPointerUp = () => {
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    if (wasDragged) persistPosition(position());
   };
 
-  const onMouseDown = (e: MouseEvent) => {
-    if (props.dragAndDrop) {
-      startDrag(e.clientX, e.clientY);
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    }
+  // Snap the button to the screen corner it's closest to, so the opened chat
+  // window always has room to unfold and never spills off-screen.
+  const nearestCorner = (pos: { bottom: number; right: number }) => {
+    const nearRight = pos.right + buttonSize / 2 < window.innerWidth / 2;
+    const nearBottom = pos.bottom + buttonSize / 2 < window.innerHeight / 2;
+    return {
+      right: nearRight ? edgeMargin : window.innerWidth - buttonSize - edgeMargin,
+      bottom: nearBottom ? edgeMargin : window.innerHeight - buttonSize - edgeMargin,
+    };
   };
 
-  const onMouseMove = (e: MouseEvent) => {
-    moveTo(e.clientX, e.clientY);
-  };
-
-  const onMouseUp = () => {
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
-  };
-
-  const onTouchStart = (e: TouchEvent) => {
-    if (props.dragAndDrop) {
-      const touch = e.touches[0];
-      startDrag(touch.clientX, touch.clientY);
-      document.addEventListener('touchmove', onTouchMove, { passive: false });
-      document.addEventListener('touchend', onTouchEnd);
-    }
-  };
-
-  const onTouchMove = (e: TouchEvent) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    moveTo(touch.clientX, touch.clientY);
-  };
-
-  const onTouchEnd = () => {
-    document.removeEventListener('touchmove', onTouchMove);
-    document.removeEventListener('touchend', onTouchEnd);
-  };
+  createEffect(
+    on(
+      () => props.isBotOpened,
+      (opened) => {
+        if (!opened || !props.dragAndDrop) return;
+        const corner = nearestCorner(position());
+        setPosition(corner);
+        props.setButtonPosition(corner);
+        persistPosition(corner);
+      },
+    ),
+  );
 
   const handleButtonClick = () => {
+    // A drag also fires a trailing click; swallow it so the chat doesn't toggle.
+    if (wasDragged) {
+      wasDragged = false;
+      return;
+    }
     props.toggleBot();
-    setUserInteracted(true); // Mark that the user has interacted
     if (window.innerWidth <= 640) {
       setIsSmallScreen(true);
     }
   };
-
-  createEffect(() => {
-    // Automatically open the chat window if autoOpen is true
-    if (props.autoOpen && (props.autoOpenOnMobile || window.innerWidth > 640)) {
-      const delayInSeconds = props.openDelay ?? 2; // Default to 2 seconds if openDelay is not defined
-      const delayInMilliseconds = delayInSeconds * 1000; // Convert seconds to milliseconds
-      setTimeout(() => {
-        if (!props.isBotOpened && !userInteracted()) {
-          props.toggleBot();
-        }
-      }, delayInMilliseconds);
-    }
-  });
 
   return (
     <Show when={!isSmallScreen() || !props.isBotOpened} keyed>
       <button
         part="button"
         onClick={handleButtonClick}
-        onMouseDown={onMouseDown}
-        onTouchStart={onTouchStart}
+        onPointerDown={onPointerDown}
         class={`fixed rounded-full hover:scale-110 active:scale-95 transition-all duration-200 flex justify-center items-center animate-fade-in`}
         style={{
           'background-color': props.backgroundColor ?? defaultButtonColor,
@@ -132,9 +165,37 @@ export const BubbleButton = (props: Props) => {
           width: `${buttonSize}px`,
           height: `${buttonSize}px`,
           cursor: props.dragAndDrop ? 'grab' : 'pointer',
+          'touch-action': props.dragAndDrop ? 'none' : undefined,
           'box-shadow': '0 4px 16px rgba(59, 130, 246, 0.3), 0 2px 8px rgba(0, 0, 0, 0.1)',
         }}
       >
+        {/* Announcement attention motion — amber radar ripple, only while the chat
+            is closed and something is unread. Two staggered rings = continuous ping. */}
+        <Show when={!props.isBotOpened && (props.announcementUnread ?? 0) > 0}>
+          <style>{`@keyframes announce-ripple{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.9);opacity:0}}`}</style>
+          <span
+            style={{
+              position: 'absolute',
+              inset: '0',
+              'border-radius': '50%',
+              border: '2px solid #f59e0b',
+              animation: 'announce-ripple 1.6s ease-out infinite',
+              'pointer-events': 'none',
+            }}
+          />
+          <span
+            style={{
+              position: 'absolute',
+              inset: '0',
+              'border-radius': '50%',
+              border: '2px solid #f59e0b',
+              animation: 'announce-ripple 1.6s ease-out infinite',
+              'animation-delay': '0.8s',
+              'pointer-events': 'none',
+            }}
+          />
+        </Show>
+
         <Show when={isNotDefined(props.customIconSrc)} keyed>
           <svg
             viewBox="0 0 24 24"

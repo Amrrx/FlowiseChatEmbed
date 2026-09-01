@@ -83,7 +83,7 @@ export const TextInput = (props: TextInputProps) => {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
       const isIMEComposition = e.isComposing || e.keyCode === 229;
       if (!isIMEComposition) {
         e.preventDefault();
