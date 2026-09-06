@@ -9,6 +9,8 @@ export type BubbleTheme = {
   disclaimer?: DisclaimerPopUpTheme;
   customCSS?: string;
   form?: FormTheme;
+  // Single accent color used as a fallback wherever a more specific color isn't set.
+  themeColor?: string;
 };
 
 export type FormTheme = {
@@ -58,6 +60,10 @@ export type FeedbackTheme = {
 };
 
 export type ChatWindowTheme = {
+  // 'sidebar' docks the chat window to the right edge full-height and emits
+  // 'flowise-sidebar-toggle' so the host page can push its own layout aside.
+  // Falls back to 'floating' below 768px viewport width. Defaults to 'floating'.
+  layout?: 'floating' | 'sidebar';
   showTitle?: boolean;
   showAgentMessages?: boolean; // parameter to show agent reasonings when using agentflows
   title?: string;
@@ -65,6 +71,7 @@ export type ChatWindowTheme = {
   titleAvatarSrc?: string;
   titleTextColor?: string;
   titleBackgroundColor?: string;
+  titleHeight?: number; // px; defaults to 56, lets a host match its own header height
   showWelcomeMessage?: boolean;
   welcomeMessage?: string;
   errorMessage?: string;
@@ -86,6 +93,10 @@ export type ChatWindowTheme = {
   dateTimeToggle?: DateTimeToggleTheme;
   renderHTML?: boolean;
   autoMessage?: AutoMessageTheme;
+  // Edge styling applied only when layout is 'sidebar'.
+  sidebarBorderWidth?: number; // px; defaults to 1
+  sidebarBorderColor?: string; // defaults to #d1d5db
+  sidebarBoxShadow?: string; // raw CSS box-shadow; defaults to '-4px 0 24px rgba(0, 0, 0, 0.12)'
 };
 
 export type ButtonTheme = {
@@ -97,6 +108,10 @@ export type ButtonTheme = {
   right?: number;
   dragAndDrop?: boolean; // parameter to enable drag and drop(true or false)
   autoWindowOpen?: autoWindowOpenTheme;
+  // Suppress the built-in launcher and tooltip. The host page supplies its own
+  // trigger and opens the panel with a 'flowise-toggle' CustomEvent dispatched
+  // on the <flowise-chatbot> element. autoWindowOpen still applies.
+  hideLauncher?: boolean;
 };
 
 export type ToolTipTheme = {

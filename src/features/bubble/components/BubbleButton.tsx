@@ -8,9 +8,6 @@ type Props = ButtonTheme & {
   setButtonPosition: (position: { bottom: number; right: number }) => void;
   dragAndDrop: boolean;
   chatflowid?: string; // Used to key the persisted drag position per chatflow
-  autoOpen?: boolean; // Optional parameter to control automatic window opening
-  openDelay?: number; // Optional parameter for delay time in seconds
-  autoOpenOnMobile?: boolean; // Optional parameter for opening on mobile
   streamConnected?: boolean;
   unreadCount?: number;
   announcementUnread?: number;
@@ -65,7 +62,6 @@ export const BubbleButton = (props: Props) => {
   );
 
   const [isSmallScreen, setIsSmallScreen] = createSignal(false);
-  const [userInteracted, setUserInteracted] = createSignal(false);
 
   // Sync the chat window anchor to the restored position before the first open.
   onMount(() => {
@@ -149,24 +145,10 @@ export const BubbleButton = (props: Props) => {
       return;
     }
     props.toggleBot();
-    setUserInteracted(true); // Mark that the user has interacted
     if (window.innerWidth <= 640) {
       setIsSmallScreen(true);
     }
   };
-
-  createEffect(() => {
-    // Automatically open the chat window if autoOpen is true
-    if (props.autoOpen && (props.autoOpenOnMobile || window.innerWidth > 640)) {
-      const delayInSeconds = props.openDelay ?? 2; // Default to 2 seconds if openDelay is not defined
-      const delayInMilliseconds = delayInSeconds * 1000; // Convert seconds to milliseconds
-      setTimeout(() => {
-        if (!props.isBotOpened && !userInteracted()) {
-          props.toggleBot();
-        }
-      }, delayInMilliseconds);
-    }
-  });
 
   return (
     <Show when={!isSmallScreen() || !props.isBotOpened} keyed>

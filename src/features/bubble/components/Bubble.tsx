@@ -1,4 +1,4 @@
-import { createSignal, Show, splitProps, onCleanup, createEffect } from 'solid-js';
+import { createSignal, Show, splitProps, onCleanup, onMount, createEffect } from 'solid-js';
 import styles from '../../../assets/index.css';
 import { BubbleButton } from './BubbleButton';
 import { BubbleParams } from '../types';
@@ -10,14 +10,21 @@ import { createAnnouncements } from '@/components/AnnouncementsButton';
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
+// Below this viewport width sidebar mode falls back to the floating overlay —
+// a docked panel leaves too little room for the host page on small screens.
+const sidebarMinViewportWidth = 768;
+const defaultSidebarWidth = 400;
+const minSidebarWidth = 240;
 
 export type BubbleProps = BotProps & BubbleParams;
 
-export const Bubble = (props: BubbleProps) => {
+export const Bubble = (props: BubbleProps, { element: hostElement }: { element: HTMLElement }) => {
   const [bubbleProps] = splitProps(props, ['theme']);
 
   const [isBotOpened, setIsBotOpened] = createSignal(false);
   const [isBotStarted, setIsBotStarted] = createSignal(false);
+  // Set once the visitor opens or closes the panel themselves; suppresses auto-open.
+  const [userInteracted, setUserInteracted] = createSignal(false);
   // Anchor for the announcement overlay — sits at the bubble root, outside the
   // chat window's `scale3d` transform, so a fixed overlay covers the full viewport.
   const [announceHost, setAnnounceHost] = createSignal<HTMLDivElement>();
@@ -69,11 +76,79 @@ export const Bubble = (props: BubbleProps) => {
   };
 
   const toggleBot = () => {
+    setUserInteracted(true);
     isBotOpened() ? closeBot() : openBot();
   };
 
   onCleanup(() => {
     setIsBotStarted(false);
+  });
+
+  // Read through functions, never plain consts: `theme` is a reactive prop and
+  // init() re-assigns it on an already-mounted element, so a value snapshotted
+  // during setup would never repaint.
+  const [viewportWidth, setViewportWidth] = createSignal(window.innerWidth);
+  onMount(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    onCleanup(() => window.removeEventListener('resize', onResize));
+  });
+
+  const layout = () => bubbleProps.theme?.chatWindow?.layout ?? 'floating';
+  const isSidebarMode = () => layout() === 'sidebar' && viewportWidth() >= sidebarMinViewportWidth;
+  // Clamped so a misconfigured width can't render a degenerate panel or hand the
+  // host a margin that doesn't match what was drawn.
+  const sidebarWidth = () => Math.max(minSidebarWidth, Math.min(bubbleProps.theme?.chatWindow?.width ?? defaultSidebarWidth, viewportWidth()));
+  const hideLauncher = () => bubbleProps.theme?.button?.hideLauncher ?? false;
+  const themeColor = () => bubbleProps.theme?.themeColor;
+
+  const backgroundStyle = () => ({
+    'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
+    'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
+    'background-size': 'cover',
+    'background-position': 'center',
+    'background-repeat': 'no-repeat',
+  });
+
+  // Tell the host page how much room the docked panel occupies so it can push its
+  // own layout aside — this widget lives in a Shadow DOM custom element and cannot
+  // reflow the host by itself. Dispatched on `document` rather than the host
+  // element: on teardown the element is already detached, so a bubbling event from
+  // it would never reach a document-level listener and the host would stay indented.
+  const emitSidebarState = (open: boolean) => {
+    document.dispatchEvent(new CustomEvent('flowise-sidebar-toggle', { detail: { open, width: open ? sidebarWidth() : 0 } }));
+  };
+
+  createEffect(() => emitSidebarState(isSidebarMode() && isBotOpened()));
+  onCleanup(() => emitSidebarState(false));
+
+  // Host-supplied trigger, for embeds that hide the built-in launcher.
+  onMount(() => {
+    if (!hostElement) return;
+    const onExternalToggle = (e: Event) => {
+      const open = (e as CustomEvent)?.detail?.open;
+      setUserInteracted(true);
+      if (open === true) openBot();
+      else if (open === false) closeBot();
+      else toggleBot();
+    };
+    hostElement.addEventListener('flowise-toggle', onExternalToggle);
+    onCleanup(() => hostElement.removeEventListener('flowise-toggle', onExternalToggle));
+  });
+
+  // Owned here rather than in BubbleButton so that hiding the launcher does not
+  // silently disable auto-open. Calls openBot() directly — going through
+  // toggleBot() would mark the open as a user interaction and suppress itself.
+  createEffect(() => {
+    if (!bubbleProps.theme?.button?.autoWindowOpen?.autoOpen) return;
+    const onMobile = window.innerWidth <= 640;
+    if (onMobile && !bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile) return;
+
+    const delay = (bubbleProps.theme?.button?.autoWindowOpen?.openDelay ?? 2) * 1000;
+    const timer = setTimeout(() => {
+      if (!isBotOpened() && !userInteracted()) openBot();
+    }, delay);
+    onCleanup(() => clearTimeout(timer));
   });
 
   const buttonSize = getBubbleButtonSize(props.theme?.button?.size); // Default to 48px if size is not provided
@@ -228,6 +303,48 @@ export const Bubble = (props: BubbleProps) => {
     return nearBottom ? (nearRight ? 180 : 270) : nearRight ? 90 : 0;
   };
 
+  // Sidebar docks to the right edge full-height and slides in horizontally; floating
+  // keeps the corner-anchored, resizable window that unfolds from the button.
+  const panelStyle = () => {
+    if (isSidebarMode()) {
+      return {
+        ...backgroundStyle(),
+        top: '0',
+        bottom: '0',
+        right: '0',
+        left: 'auto',
+        height: '100vh',
+        'max-height': 'none',
+        width: `${sidebarWidth()}px`,
+        transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
+        transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
+        'box-shadow': bubbleProps.theme?.chatWindow?.sidebarBoxShadow ?? '-4px 0 24px rgba(0, 0, 0, 0.12)',
+        'border-left': `${bubbleProps.theme?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${
+          bubbleProps.theme?.chatWindow?.sidebarBorderColor ?? '#d1d5db'
+        }`,
+        'border-radius': '0',
+        'z-index': 42424242,
+      };
+    }
+
+    return {
+      ...sizeStyle(),
+      ...backgroundStyle(),
+      transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
+      transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
+      'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
+      'z-index': 42424242,
+      'border-radius': '20px',
+      ...windowAnchor(),
+    };
+  };
+
+  const panelClass = () => {
+    const visibility = isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none';
+    if (isSidebarMode()) return 'fixed inset-y-0 right-0' + visibility;
+    return `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` + visibility + ` bottom-${chatWindowBottom}px`;
+  };
+
   // Add viewport meta tag dynamically
   createEffect(() => {
     const meta = document.createElement('meta');
@@ -249,53 +366,31 @@ export const Bubble = (props: BubbleProps) => {
       </Show>
       <style>{styles}</style>
       <div ref={setAnnounceHost} />
-      <Tooltip
-        showTooltip={showTooltip && !isBotOpened()}
-        position={buttonPosition()}
-        buttonSize={buttonSize}
-        tooltipMessage={bubbleProps.theme?.tooltip?.tooltipMessage}
-        tooltipBackgroundColor={bubbleProps.theme?.tooltip?.tooltipBackgroundColor}
-        tooltipTextColor={bubbleProps.theme?.tooltip?.tooltipTextColor}
-        tooltipFontSize={bubbleProps.theme?.tooltip?.tooltipFontSize} // Set the tooltip font size
-      />
-      <BubbleButton
-        {...bubbleProps.theme?.button}
-        toggleBot={toggleBot}
-        isBotOpened={isBotOpened()}
-        setButtonPosition={setButtonPosition}
-        dragAndDrop={bubbleProps.theme?.button?.dragAndDrop ?? false}
-        chatflowid={props.chatflowid}
-        autoOpen={bubbleProps.theme?.button?.autoWindowOpen?.autoOpen ?? false}
-        openDelay={bubbleProps.theme?.button?.autoWindowOpen?.openDelay}
-        autoOpenOnMobile={bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile ?? false}
-        streamConnected={streamConnected()}
-        unreadCount={unreadCount()}
-        announcementUnread={announce.unreadCount()}
-      />
-      <div
-        part="bot"
-        ref={windowRef}
-        style={{
-          ...sizeStyle(),
-          transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
-          transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
-          'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
-          'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
-          'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
-          'background-size': 'cover',
-          'background-position': 'center',
-          'background-repeat': 'no-repeat',
-          'z-index': 42424242,
-          'border-radius': '20px',
-          ...windowAnchor(),
-        }}
-        class={
-          `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` +
-          (isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none') +
-          ` bottom-${chatWindowBottom}px`
-        }
-      >
-        <Show when={isBotOpened()}>
+      <Show when={!hideLauncher()}>
+        <Tooltip
+          showTooltip={showTooltip && !isBotOpened()}
+          position={buttonPosition()}
+          buttonSize={buttonSize}
+          tooltipMessage={bubbleProps.theme?.tooltip?.tooltipMessage}
+          tooltipBackgroundColor={bubbleProps.theme?.tooltip?.tooltipBackgroundColor}
+          tooltipTextColor={bubbleProps.theme?.tooltip?.tooltipTextColor}
+          tooltipFontSize={bubbleProps.theme?.tooltip?.tooltipFontSize} // Set the tooltip font size
+        />
+        <BubbleButton
+          {...bubbleProps.theme?.button}
+          toggleBot={toggleBot}
+          isBotOpened={isBotOpened()}
+          setButtonPosition={setButtonPosition}
+          backgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor()}
+          dragAndDrop={bubbleProps.theme?.button?.dragAndDrop ?? false}
+          chatflowid={props.chatflowid}
+          streamConnected={streamConnected()}
+          unreadCount={unreadCount()}
+          announcementUnread={announce.unreadCount()}
+        />
+      </Show>
+      <div part="bot" ref={windowRef} style={panelStyle()} class={panelClass()}>
+        <Show when={isBotOpened() && !isSidebarMode()}>
           <div
             class="hidden sm:flex opacity-90 hover:opacity-100 transition-opacity duration-150"
             style={gripStyle()}
@@ -329,8 +424,10 @@ export const Bubble = (props: BubbleProps) => {
               formBackgroundColor={bubbleProps.theme?.form?.backgroundColor}
               formTextColor={bubbleProps.theme?.form?.textColor}
               badgeBackgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
-              bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? defaultButtonColor}
+              bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor() ?? defaultButtonColor}
               bubbleTextColor={bubbleProps.theme?.button?.iconColor ?? defaultIconColor}
+              squareCorners={isSidebarMode()}
+              titleHeight={bubbleProps.theme?.chatWindow?.titleHeight}
               showTitle={bubbleProps.theme?.chatWindow?.showTitle}
               showAgentMessages={bubbleProps.theme?.chatWindow?.showAgentMessages}
               title={bubbleProps.theme?.chatWindow?.title}
@@ -342,7 +439,10 @@ export const Bubble = (props: BubbleProps) => {
               welcomeMessage={bubbleProps.theme?.chatWindow?.welcomeMessage}
               errorMessage={bubbleProps.theme?.chatWindow?.errorMessage}
               poweredByTextColor={bubbleProps.theme?.chatWindow?.poweredByTextColor}
-              textInput={bubbleProps.theme?.chatWindow?.textInput}
+              textInput={{
+                ...bubbleProps.theme?.chatWindow?.textInput,
+                sendButtonColor: bubbleProps.theme?.chatWindow?.textInput?.sendButtonColor ?? themeColor(),
+              }}
               botMessage={bubbleProps.theme?.chatWindow?.botMessage}
               userMessage={bubbleProps.theme?.chatWindow?.userMessage}
               feedback={bubbleProps.theme?.chatWindow?.feedback}

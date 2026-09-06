@@ -8,9 +8,6 @@ type Props = ButtonTheme & {
     }) => void;
     dragAndDrop: boolean;
     chatflowid?: string;
-    autoOpen?: boolean;
-    openDelay?: number;
-    autoOpenOnMobile?: boolean;
     streamConnected?: boolean;
     unreadCount?: number;
     announcementUnread?: number;
