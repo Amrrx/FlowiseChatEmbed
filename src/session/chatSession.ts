@@ -1,3 +1,4 @@
+import { createSignal } from 'solid-js';
 import { getLocalStorageChatflow, setLocalStorageChatflow, removeLocalStorageChatHistory } from '@/utils';
 
 /**
@@ -47,8 +48,19 @@ export function getOrCreateSessionId(chatflowid: string, customerId?: string, us
   return fresh;
 }
 
+/**
+ * Bumped whenever the stored session is discarded, so consumers holding a
+ * connection bound to the old sessionId can rebuild it. The id itself is not
+ * kept here — it lives in localStorage and is re-read through
+ * getOrCreateSessionId, which mints the replacement on the next call.
+ */
+const [sessionGeneration, setSessionGeneration] = createSignal(0);
+
+export const sessionGenerationOf = sessionGeneration;
+
 export function resetSessionId(chatflowid: string): void {
   removeLocalStorageChatHistory(chatflowid);
+  setSessionGeneration((generation) => generation + 1);
 }
 
 /** @deprecated use getOrCreateSessionId */

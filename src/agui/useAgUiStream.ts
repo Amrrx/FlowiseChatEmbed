@@ -1,7 +1,7 @@
 import { createSignal, onCleanup, createEffect, Accessor, Setter } from 'solid-js';
 import { connectStream, disconnectStream, StreamEvent } from './stream';
 import { fetchUnreadNotifications, type Notification } from '@/api/notifications';
-import { getOrCreateSessionId } from '@/session/chatSession';
+import { getOrCreateSessionId, sessionGenerationOf } from '@/session/chatSession';
 
 export type UseAgUiStreamInput = {
   apiHost?: () => string | undefined;
@@ -50,24 +50,36 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
   // so mount timing != config readiness.
   let connected = false;
   let connectedUserId: string | undefined;
+  let connectedSessionId: string | undefined;
 
   createEffect(() => {
     if (input.protocol?.() !== 'ag-ui') return;
+
+    // Tracked so a reset re-runs this effect: the id lives in localStorage, which
+    // is not reactive on its own.
+    sessionGenerationOf();
 
     const vars = (input.chatflowConfig?.()?.vars ?? {}) as Record<string, string>;
     const agentId = input.agentId?.();
     if (!vars.userId || !agentId) return;
 
-    // Already connected for this user — nothing to do (other prop changes don't
-    // warrant a reconnect). A *different* userId on the same browser ("login as")
-    // means the live socket is bound to the previous user's channels server-side,
-    // so tear it down and reconnect — picking up the new user's fresh sessionId.
-    if (connected && vars.userId === connectedUserId) return;
+    const sessionId = getOrCreateSessionId(input.chatflowid(), vars.customerId, vars.userId);
+
+    // Already connected for this user and session — nothing to do (other prop
+    // changes don't warrant a reconnect). Two things force a rebuild:
+    //   userId    — "login as" leaves the socket bound to the previous user's
+    //               channels server-side.
+    //   sessionId — the server publishes session-scoped events (HITL cards,
+    //               progress) on events:{user}:{agent}:{session}, and this socket
+    //               subscribed to that channel at connect time. After a reset the
+    //               old subscription can never receive the new session's cards,
+    //               and Redis discards them silently.
+    if (connected && vars.userId === connectedUserId && sessionId === connectedSessionId) return;
     if (connected) disconnectStream();
 
     connected = true;
     connectedUserId = vars.userId;
-    const sessionId = getOrCreateSessionId(input.chatflowid(), vars.customerId, vars.userId);
+    connectedSessionId = sessionId;
 
     connectStream({
       apiHost: input.apiHost?.() ?? '',

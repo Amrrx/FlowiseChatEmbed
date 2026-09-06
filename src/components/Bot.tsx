@@ -33,8 +33,8 @@ import { CircleDotIcon, SparklesIcon, TrashIcon } from './icons';
 import { CancelButton } from './buttons/CancelButton';
 import { cancelAudioRecording, startAudioRecording, stopAudioRecording } from '@/utils/audioRecording';
 import { LeadCaptureBubble } from '@/components/bubbles/LeadCaptureBubble';
-import { removeLocalStorageChatHistory, getLocalStorageChatflow, setLocalStorageChatflow, setCookie, getCookie } from '@/utils';
-import { getOrCreateSessionId } from '@/session/chatSession';
+import { getLocalStorageChatflow, setLocalStorageChatflow, setCookie, getCookie } from '@/utils';
+import { getOrCreateSessionId, resetSessionId } from '@/session/chatSession';
 import { cloneDeep } from 'lodash';
 import { FollowUpPromptBubble } from '@/components/bubbles/FollowUpPromptBubble';
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source';
@@ -2062,7 +2062,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
   const clearChat = () => {
     try {
-      removeLocalStorageChatHistory(props.chatflowid);
+      // Through the session owner, not localStorage directly: discarding the id
+      // has to notify the live SSE stream, which is subscribed to the old
+      // session's event channel until it reconnects.
+      resetSessionId(props.chatflowid);
       const vars = (props.chatflowConfig?.vars as any) ?? {};
       setChatId(getOrCreateSessionId(props.chatflowid, vars.customerId?.toString(), vars.userId));
       setUploadedFiles([]);
