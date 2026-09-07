@@ -17,6 +17,7 @@ type BaseRequest = {
 };
 export type MessageRequest = BaseRequest & {
     chatflowid?: string;
+    apiPath?: string;
     body?: IncomingInput;
 };
 export type FeedbackRatingType = 'THUMBS_UP' | 'THUMBS_DOWN';
@@ -73,7 +74,7 @@ export declare const updateFeedbackQuery: ({ id, apiHost, body, onRequest }: Upd
     data?: unknown;
     error?: Error | undefined;
 }>;
-export declare const sendMessageQuery: ({ chatflowid, apiHost, body, onRequest }: MessageRequest) => Promise<{
+export declare const sendMessageQuery: ({ chatflowid, apiHost, apiPath, body, onRequest, }: MessageRequest) => Promise<{
     data?: any;
     error?: Error | undefined;
 }>;

@@ -810,6 +810,14 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   );
 
   const [isChatFlowAvailableToStream, setIsChatFlowAvailableToStream] = createSignal(false);
+
+  // The probe behind isChatFlowAvailableToStream fails silently: sendRequest turns a network
+  // error or a non-2xx into { error }, and the flag is only assigned when `data` came back.
+  // A single failed probe — a gateway restart while the page loads — therefore pins this
+  // instance to the legacy transport for the rest of its life. An 'ag-ui' protocol answers
+  // the same question authoritatively, so it must not wait on the probe.
+  const useStreamingTransport = () => isAGUI() || isChatFlowAvailableToStream();
+
   const [chatId, setChatId] = createSignal('');
   const [isMessageStopping, setIsMessageStopping] = createSignal(false);
   const [isWaitingForAutoMessage, setIsWaitingForAutoMessage] = createSignal(false);
@@ -1921,13 +1929,14 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
     if (humanInput) body.humanInput = humanInput;
 
-    if (isChatFlowAvailableToStream()) {
+    if (useStreamingTransport()) {
       const streamHandler = isAGUI() ? fetchResponseFromAGUIStream : fetchResponseFromEventStream;
       streamHandler(endpointId(), body);
     } else {
       const result = await sendMessageQuery({
         chatflowid: endpointId(),
         apiHost: props.apiHost,
+        apiPath: endpointPath(),
         body,
         onRequest: props.onRequest,
       });
@@ -2158,43 +2167,53 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       setDisclaimerPopupOpen(false);
     }
 
-    const chatMessage = getLocalStorageChatflow(props.chatflowid);
-    if (chatMessage && Object.keys(chatMessage).length) {
-      if (chatMessage.chatId) setChatId(chatMessage.chatId);
-      const savedLead = chatMessage.lead;
-      if (savedLead) {
-        setIsLeadSaved(!!savedLead);
-        setLeadEmail(savedLead.email);
-      }
-      const loadedMessages: MessageType[] =
-        chatMessage?.chatHistory?.length > 0
-          ? chatMessage.chatHistory?.map((message: MessageType) => {
-              const chatHistory: MessageType = {
-                messageId: message?.messageId,
-                message: message.message,
-                type: message.type,
-                rating: message.rating,
-                dateTime: message.dateTime,
-              };
-              if (message.sourceDocuments) chatHistory.sourceDocuments = message.sourceDocuments;
-              if (message.fileAnnotations) chatHistory.fileAnnotations = message.fileAnnotations;
-              if (message.fileUploads) chatHistory.fileUploads = message.fileUploads;
-              if (message.agentReasoning) chatHistory.agentReasoning = message.agentReasoning;
-              if (message.action) chatHistory.action = message.action;
-              if (message.artifacts) chatHistory.artifacts = message.artifacts;
-              if (message.followUpPrompts) chatHistory.followUpPrompts = message.followUpPrompts;
-              if (message.execution && message.execution.executionData)
-                chatHistory.agentFlowExecutedData =
-                  typeof message.execution.executionData === 'string' ? JSON.parse(message.execution.executionData) : message.execution.executionData;
-              if (message.agentFlowExecutedData)
-                chatHistory.agentFlowExecutedData =
-                  typeof message.agentFlowExecutedData === 'string' ? JSON.parse(message.agentFlowExecutedData) : message.agentFlowExecutedData;
-              return chatHistory;
-            })
-          : [{ message: props.welcomeMessage ?? defaultWelcomeMessage, type: 'apiMessage' }];
+    try {
+      const chatMessage = getLocalStorageChatflow(props.chatflowid);
+      if (chatMessage && Object.keys(chatMessage).length) {
+        if (chatMessage.chatId) setChatId(chatMessage.chatId);
+        const savedLead = chatMessage.lead;
+        if (savedLead) {
+          setIsLeadSaved(!!savedLead);
+          setLeadEmail(savedLead.email);
+        }
+        const loadedMessages: MessageType[] =
+          chatMessage?.chatHistory?.length > 0
+            ? chatMessage.chatHistory?.map((message: MessageType) => {
+                const chatHistory: MessageType = {
+                  messageId: message?.messageId,
+                  message: message.message,
+                  type: message.type,
+                  rating: message.rating,
+                  dateTime: message.dateTime,
+                };
+                if (message.sourceDocuments) chatHistory.sourceDocuments = message.sourceDocuments;
+                if (message.fileAnnotations) chatHistory.fileAnnotations = message.fileAnnotations;
+                if (message.fileUploads) chatHistory.fileUploads = message.fileUploads;
+                if (message.agentReasoning) chatHistory.agentReasoning = message.agentReasoning;
+                if (message.action) chatHistory.action = message.action;
+                if (message.artifacts) chatHistory.artifacts = message.artifacts;
+                if (message.followUpPrompts) chatHistory.followUpPrompts = message.followUpPrompts;
+                if (message.execution && message.execution.executionData)
+                  chatHistory.agentFlowExecutedData =
+                    typeof message.execution.executionData === 'string'
+                      ? JSON.parse(message.execution.executionData)
+                      : message.execution.executionData;
+                if (message.agentFlowExecutedData)
+                  chatHistory.agentFlowExecutedData =
+                    typeof message.agentFlowExecutedData === 'string' ? JSON.parse(message.agentFlowExecutedData) : message.agentFlowExecutedData;
+                return chatHistory;
+              })
+            : [{ message: props.welcomeMessage ?? defaultWelcomeMessage, type: 'apiMessage' }];
 
-      const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage');
-      setMessages([...filteredMessages]);
+        const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage');
+        setMessages([...filteredMessages]);
+      }
+    } catch (e) {
+      // A corrupt stored session must not take the rest of this effect down with it:
+      // everything below decides how messages are sent, and never running it would
+      // pin the widget to the fallback transport for the page's whole lifetime.
+      console.error(e);
+      setMessages([{ message: props.welcomeMessage ?? defaultWelcomeMessage, type: 'apiMessage' }]);
     }
     setHistoryLoaded(true);
 
@@ -2363,13 +2382,14 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
         if (props.chatflowConfig) body.overrideConfig = props.chatflowConfig;
 
-        if (isChatFlowAvailableToStream()) {
+        if (useStreamingTransport()) {
           const streamHandler = isAGUI() ? fetchResponseFromAGUIStream : fetchResponseFromEventStream;
           streamHandler(endpointId(), body);
         } else {
           sendMessageQuery({
             chatflowid: endpointId(),
             apiHost: props.apiHost,
+            apiPath: endpointPath(),
             body,
             onRequest: props.onRequest,
           }).then((result) => {
