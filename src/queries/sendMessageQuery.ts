@@ -21,6 +21,9 @@ type BaseRequest = {
 
 export type MessageRequest = BaseRequest & {
   chatflowid?: string;
+  // Route prefix the message is posted to. Defaults to Flowise's own prediction path;
+  // a gateway that owns agent routing supplies its own (e.g. '/chat').
+  apiPath?: string;
   body?: IncomingInput;
 };
 
@@ -95,10 +98,16 @@ export const updateFeedbackQuery = ({ id, apiHost = 'http://localhost:3000', bod
     onRequest: onRequest,
   });
 
-export const sendMessageQuery = ({ chatflowid, apiHost = 'http://localhost:3000', body, onRequest }: MessageRequest) =>
+export const sendMessageQuery = ({
+  chatflowid,
+  apiHost = 'http://localhost:3000',
+  apiPath = '/api/v1/prediction',
+  body,
+  onRequest,
+}: MessageRequest) =>
   sendRequest<any>({
     method: 'POST',
-    url: `${apiHost}/api/v1/prediction/${chatflowid}`,
+    url: `${apiHost}${apiPath}/${chatflowid}`,
     body,
     onRequest: onRequest,
   });
