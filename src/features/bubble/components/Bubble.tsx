@@ -58,6 +58,9 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   const announce = createAnnouncements({
     apiHost: () => props.apiHost ?? '',
     userId: () => ((props.chatflowConfig?.vars as any)?.userId as string) ?? '',
+    // Same resolution Bot.tsx uses for its endpoint id.
+    agentId: () => props.agentId ?? props.chatflowid ?? '',
+    userToken: () => ((props.chatflowConfig?.vars as any)?.userToken as string) ?? '',
     registerStreamHandler,
   });
 

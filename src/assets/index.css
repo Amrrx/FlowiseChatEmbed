@@ -545,3 +545,69 @@ button {
 [dir='rtl'] .send-icon {
   transform: scaleX(-1);
 }
+/* ── Announcement body: rendered markdown ───────────────────────────────────
+ * Tailwind Preflight (`@tailwind base`) resets headings to `font-size: inherit`
+ * and strips list markers, so injected markdown renders as flat 13px text with no
+ * bullets. These rules restore it, and the same numbers are mirrored in the
+ * dashboard panel's CSS so the operator preview and the customer view agree.
+ * Precedent: the `.markdownanswer` rules above do this for bot bubbles.
+ * Values are the contract — change both surfaces together.
+ */
+.announcement-body p {
+  margin: 0 0 8px;
+}
+.announcement-body h3 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 6px;
+}
+.announcement-body h4 {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 6px;
+}
+.announcement-body ul {
+  list-style: disc outside;
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.announcement-body ol {
+  list-style: decimal outside;
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.announcement-body li {
+  margin: 0 0 2px;
+}
+.announcement-body strong {
+  font-weight: 600;
+}
+.announcement-body em {
+  font-style: italic;
+}
+.announcement-body a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+/* `inherit` rather than values, so this tracks the body text on both surfaces —
+ * see the matching note in the dashboard panel's CSS. */
+.announcement-body code {
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.announcement-body blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid #e5e7eb;
+  color: #6b7280;
+}
+.announcement-body > *:last-child {
+  margin-bottom: 0;
+}

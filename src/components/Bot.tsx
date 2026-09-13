@@ -3405,6 +3405,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 <AnnouncementsButton
                   apiHost={props.apiHost ?? ''}
                   userId={((props.chatflowConfig?.vars as any)?.userId as string) ?? ''}
+                  agentId={props.agentId ?? props.chatflowid ?? ''}
+                  userToken={((props.chatflowConfig?.vars as any)?.userToken as string) ?? ''}
                   registerStreamHandler={stream.registerStreamHandler}
                   color={props.titleTextColor || props.bubbleTextColor}
                   overlayMount={props.overlayMount}

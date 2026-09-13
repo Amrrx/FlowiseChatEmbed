@@ -1,6 +1,7 @@
 import { createSignal, createEffect, on, onMount, onCleanup, Show, For } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { Announcement, fetchActiveAnnouncements, markAnnouncementsRead } from '@/api/announcements';
+import { renderAnnouncementBody, resolveMediaUrl } from './announcementMarkdown';
 
 export type AnnouncementsController = {
   announcements: () => Announcement[];
@@ -12,6 +13,9 @@ export type AnnouncementsController = {
 type ControllerOpts = {
   apiHost: () => string;
   userId: () => string;
+  /** Agent-scoped announcements mean the badge is per-agent, so this is part of the key. */
+  agentId: () => string;
+  userToken: () => string;
   registerStreamHandler: (handler: (event: any) => void) => () => void;
 };
 
@@ -27,11 +31,55 @@ export const createAnnouncements = (opts: ControllerOpts): AnnouncementsControll
   const [announcements, setAnnouncements] = createSignal<Announcement[]>([]);
   const unreadCount = () => announcements().filter((a) => a.unread).length;
 
+  const identity = () => ({
+    apiHost: opts.apiHost(),
+    userId: opts.userId(),
+    agentId: opts.agentId(),
+    userToken: opts.userToken(),
+  });
+
+  // Two counters, answering two different questions.
+  //
+  // `generation` orders concurrent fetches: two can settle out of order, and only
+  // the newest may install.
+  //
+  // `epoch` is bumped when the identity changes, and invalidates EVERYTHING in
+  // flight. It is separate because a request that completes after a user switch is
+  // not merely stale — it belongs to a different person. Without it, user A's
+  // delayed mark-read success lands in user B's confirmed set, and an outstanding
+  // GET can repopulate a list that logout just cleared. A generation check alone
+  // cannot catch the logout case: `refresh` returns early when the user id is
+  // empty, so it never bumps generation and the in-flight fetch still looks newest.
+  let generation = 0;
+  let epoch = 0;
+
+  /** Disown every request in flight — called on any identity change. */
+  const invalidate = () => {
+    epoch += 1;
+    generation += 1;
+  };
+
+  // Local read knowledge, deliberately in TWO sets. A single set overriding every
+  // fetch would make a FAILED mark-read permanent on screen: the badge clears, the
+  // POST 500s, and no refresh could ever restore it — the user silently loses an
+  // announcement. `pending` is an optimistic guess and is droppable; `confirmed` is
+  // a server fact. Both are scoped to the user and cleared on identity change,
+  // because read-state is per-person and inheriting a previous person's set would
+  // suppress announcements the new user has never seen.
+  const pendingReads = new Set<string>();
+  const confirmedReads = new Set<string>();
+
+  const applyLocalReads = (rows: Announcement[]): Announcement[] =>
+    rows.map((a) => (pendingReads.has(a.announcement_id) || confirmedReads.has(a.announcement_id) ? { ...a, unread: false } : a));
+
   const refresh = async () => {
     if (!opts.userId()) return;
+    const mine = ++generation;
+    const myEpoch = epoch;
     try {
-      const res = await fetchActiveAnnouncements(opts.apiHost(), opts.userId());
-      setAnnouncements(res.announcements);
+      const res = await fetchActiveAnnouncements(identity());
+      if (myEpoch !== epoch || mine !== generation) return;
+      setAnnouncements(applyLocalReads(res.announcements));
     } catch (err) {
       console.warn('[Announcements] fetch failed:', err);
     }
@@ -41,17 +89,57 @@ export const createAnnouncements = (opts: ControllerOpts): AnnouncementsControll
     if (ids.length === 0) return;
     // optimistic clear + persist — updates the one shared signal, so the header
     // badge and the bubble motion both settle together.
-    setAnnouncements((prev) => prev.map((a) => (ids.includes(a.announcement_id) ? { ...a, unread: false } : a)));
-    markAnnouncementsRead(opts.apiHost(), opts.userId(), ids).catch(() => void refresh());
+    ids.forEach((id) => pendingReads.add(id));
+    setAnnouncements((prev) => applyLocalReads(prev));
+
+    const myEpoch = epoch;
+    const settle = (ok: boolean) => {
+      // A different person owns this controller now — this result is not theirs.
+      if (myEpoch !== epoch) return;
+      ids.forEach((id) => pendingReads.delete(id));
+      if (ok) {
+        ids.forEach((id) => confirmedReads.add(id));
+        return;
+      }
+      // The write did not land — drop the guess and let the server decide.
+      void refresh();
+    };
+    void markAnnouncementsRead(identity(), ids).then(settle, () => settle(false));
   };
 
   onMount(() => {
     void refresh();
     const unregister = opts.registerStreamHandler((event) => {
       if (event?.type === 'announcement') void refresh();
+      // Another tab (any agent) marked these read. Clear locally and idempotently —
+      // self-delivery is harmless — without a refetch.
+      if (event?.type === 'announcement_read') {
+        (event.announcement_ids ?? []).forEach((id: string) => confirmedReads.add(id));
+        setAnnouncements((prev) => applyLocalReads(prev));
+      }
     });
     onCleanup(unregister);
   });
+
+  // A session that switches user or agent must not keep showing the previous
+  // identity's announcements. `defer: true` so this does not double the mount fetch.
+  createEffect(
+    on(
+      () => `${opts.userId()}|${opts.agentId()}`,
+      () => {
+        // Invalidate BEFORE clearing, so a reply already on the wire cannot write
+        // into the list we are about to hand to the next identity. This runs even
+        // when the new user id is empty (logout), which is the case refresh alone
+        // cannot cover.
+        invalidate();
+        pendingReads.clear();
+        confirmedReads.clear();
+        setAnnouncements([]);
+        void refresh();
+      },
+      { defer: true },
+    ),
+  );
 
   return { announcements, unreadCount, refresh, markRead };
 };
@@ -59,6 +147,10 @@ export const createAnnouncements = (opts: ControllerOpts): AnnouncementsControll
 type Props = {
   apiHost: string;
   userId: string;
+  /** Full / popup modes have no launcher, so the button's own controller needs
+   *  these too — without them those modes silently keep the old behaviour. */
+  agentId?: string;
+  userToken?: string;
   /** Stream handler registrar — lets us light the LED live on an `announcement` frame. */
   registerStreamHandler: (handler: (event: any) => void) => () => void;
   color?: string;
@@ -79,7 +171,7 @@ type Props = {
 /**
  * Chat-header button + LED + centered overlay for operator broadcast announcements.
  * Consumes an injected data controller (Bubble owns it) or creates its own; renders
- * the overlay and marks-read on open. First pass — body is plain text (markdown later).
+ * the overlay and marks-read on open. Body renders markdown via announcementMarkdown.
  */
 export const AnnouncementsButton = (props: Props) => {
   const ctrl =
@@ -87,6 +179,8 @@ export const AnnouncementsButton = (props: Props) => {
     createAnnouncements({
       apiHost: () => props.apiHost,
       userId: () => props.userId,
+      agentId: () => props.agentId ?? '',
+      userToken: () => props.userToken ?? '',
       registerStreamHandler: props.registerStreamHandler,
     });
 
@@ -141,11 +235,19 @@ export const AnnouncementsButton = (props: Props) => {
     <div style={{ padding: '12px 18px 18px', 'border-top': '1px solid #f1f1f4' }}>
       <div style={{ 'font-size': '14px', 'font-weight': '600', 'margin-bottom': '6px' }}>{p.a.title}</div>
       <Show when={p.a.media}>
-        <img src={p.a.media!.url} alt="" style={{ 'max-width': '100%', 'border-radius': '10px', 'margin-bottom': '8px' }} />
+        <img
+          data-testid="announcement-media"
+          src={resolveMediaUrl(p.a.media!.url, props.apiHost)}
+          alt=""
+          style={{ 'max-width': '100%', 'border-radius': '10px', 'margin-bottom': '8px' }}
+        />
       </Show>
-      <div style={{ 'font-size': '13px', 'line-height': '1.5', color: '#374151', 'white-space': 'pre-wrap', 'word-break': 'break-word' }}>
-        {p.a.body}
-      </div>
+      <div
+        class="announcement-body"
+        data-testid="announcement-body"
+        style={{ 'font-size': '13px', 'line-height': '1.5', color: '#374151', 'word-break': 'break-word' }}
+        innerHTML={renderAnnouncementBody(p.a.body)}
+      />
       <Show when={p.a.cta}>
         <a
           href={p.a.cta!.url}
@@ -174,6 +276,7 @@ export const AnnouncementsButton = (props: Props) => {
       <button
         type="button"
         title="Announcements"
+        data-testid="announcement-button"
         onClick={openOverlay}
         style={{
           position: 'relative',
@@ -201,6 +304,7 @@ export const AnnouncementsButton = (props: Props) => {
         </svg>
         <Show when={unreadCount() > 0}>
           <span
+            data-testid="announcement-unread-led"
             style={{
               position: 'absolute',
               top: '2px',
