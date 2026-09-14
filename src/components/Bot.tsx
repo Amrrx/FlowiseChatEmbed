@@ -1,4 +1,6 @@
 import { createSignal, createEffect, For, onMount, Show, mergeProps, on, createMemo, onCleanup } from 'solid-js';
+import { fetchQuickActions, QuickAction, QuickActionIdentity } from '@/api/quickActions';
+import { SuggestedActions } from './SuggestedActions';
 import {
   sendMessageQuery,
   upsertVectorStoreWithFormData,
@@ -859,6 +861,65 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   // follow-up prompts
   const [followUpPromptsStatus, setFollowUpPromptsStatus] = createSignal<boolean>(false);
   const [followUpPrompts, setFollowUpPrompts] = createSignal<string[]>([]);
+
+  const [quickActions, setQuickActions] = createSignal<QuickAction[]>([]);
+  let quickActionsGeneration = 0;
+  let quickActionsEpoch = 0;
+
+  /** Disown every quick-actions request in flight — called on any identity change. */
+  const invalidateQuickActions = () => {
+    quickActionsEpoch += 1;
+    quickActionsGeneration += 1;
+  };
+
+  // Identity is not on flat props: userId and userToken live under chatflowConfig.vars,
+  // and agentId falls back to chatflowid. Same source the AnnouncementsButton call site
+  // in this file uses — the only other consumer of this identity.
+  const quickActionUserId = (): string => ((props.chatflowConfig?.vars as any)?.userId as string) ?? '';
+  const quickActionUserToken = (): string => ((props.chatflowConfig?.vars as any)?.userToken as string) ?? '';
+  const quickActionAgentId = (): string => props.agentId ?? props.chatflowid ?? '';
+
+  const quickActionIdentity = (): QuickActionIdentity => ({
+    apiHost: props.apiHost ?? '',
+    userId: quickActionUserId(),
+    agentId: quickActionAgentId(),
+    userToken: quickActionUserToken(),
+  });
+
+  const refreshQuickActions = async () => {
+    if (!quickActionUserId()) return;
+    const mine = ++quickActionsGeneration;
+    const myEpoch = quickActionsEpoch;
+    try {
+      const actions = await fetchQuickActions(quickActionIdentity());
+      if (myEpoch !== quickActionsEpoch || mine !== quickActionsGeneration) return;
+      setQuickActions(actions);
+    } catch (err) {
+      // An affordance, not content: a failed fetch renders no row and no error state.
+      console.warn('[QuickActions] fetch failed:', err);
+    }
+  };
+
+  onMount(() => {
+    void refreshQuickActions();
+  });
+
+  // A session that switches user or agent must not keep showing the previous
+  // identity's actions. `defer: true` so this does not double the mount fetch.
+  createEffect(
+    on(
+      () => `${quickActionUserId()}|${quickActionAgentId()}`,
+      () => {
+        // Invalidate BEFORE clearing, so a reply already on the wire cannot write
+        // into the list we are about to hand to the next identity. This runs even
+        // when the new user id is empty (logout), which refresh alone cannot cover.
+        invalidateQuickActions();
+        setQuickActions([]);
+        void refreshQuickActions();
+      },
+      { defer: true },
+    ),
+  );
 
   // drag & drop
   const [isDragActive, setIsDragActive] = createSignal(false);
@@ -2743,6 +2804,18 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     return false;
   };
 
+  /**
+   * Quick actions need the composer's eligibility rule plus terms the composer does
+   * not need:
+   *  - isRecording: the composer swaps <TextInput> out entirely while recording, so
+   *    getInputDisabled never had to cover it. A permanently mounted row does.
+   *  - draft / previews: an action must not hijack pending attachments or destroy a
+   *    typed draft that turn completion would clear.
+   * getInputDisabled itself is deliberately NOT extended — it drives the text input,
+   * so a draft term in it would disable typing after the first character.
+   */
+  const quickActionsDisabled = (): boolean => getInputDisabled() || isRecording() || userInput().trim() !== '' || previews().length > 0;
+
   // TTS Functions
   const processChunkQueue = () => {
     const currentState = ttsStreamingState();
@@ -3425,11 +3498,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               </DeleteButton>
             </div>
           ) : null}
-          <div class="flex flex-col w-full h-full justify-start z-0">
+          <div class="flex flex-col w-full h-full min-h-0 overflow-hidden justify-start z-0">
             <div
               ref={chatContainer}
               class={
-                'overflow-y-scroll flex flex-col flex-grow min-w-full w-full px-3 relative scrollable-container chatbot-chat-view scroll-smooth' +
+                'overflow-y-scroll flex flex-col flex-grow min-h-0 min-w-full w-full px-3 relative scrollable-container chatbot-chat-view scroll-smooth' +
                 (props.titleHeight ? '' : ' pt-[70px]')
               }
               style={props.titleHeight ? { 'padding-top': `${props.titleHeight + 14}px` } : undefined}
@@ -3633,48 +3706,57 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 }}
               </For>
             </div>
-            <Show when={messages().length === 1}>
-              <Show when={starterPrompts().length > 0}>
-                <div class="w-full flex flex-row flex-wrap px-5 py-[10px] gap-2">
-                  <For each={[...starterPrompts()]}>
-                    {(key) => (
-                      <StarterPromptBubble
-                        prompt={key}
-                        onPromptClick={() => promptClick(key)}
-                        starterPromptFontSize={botProps.starterPromptFontSize} // Pass it here as a number
-                      />
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </Show>
-            <Show when={messages().length > 2 && followUpPromptsStatus()}>
-              <Show when={followUpPrompts().length > 0}>
-                <>
-                  <div class="flex items-center gap-1 px-5">
-                    <SparklesIcon class="w-4 h-4" />
-                    <span class="text-sm text-gray-700">Try these prompts</span>
-                  </div>
+            {/* Bounded strip for the two WRAPPING prompt rows. Their height is driven by
+                prompt text length, so at the 300px minimum window they can exceed what is
+                left after the title and composer and clip the composer off the panel.
+                Quick actions sit OUTSIDE this cap: that row never wraps (one line, scrolls
+                sideways), so its height is already fixed — and being permanently visible is
+                the point, so it must not be the thing that scrolls out of view. */}
+            <div class="w-full flex flex-col min-h-0 max-h-[25%] overflow-y-auto">
+              <Show when={messages().length === 1}>
+                <Show when={starterPrompts().length > 0}>
                   <div class="w-full flex flex-row flex-wrap px-5 py-[10px] gap-2">
-                    <For each={[...followUpPrompts()]}>
-                      {(prompt, index) => (
-                        <FollowUpPromptBubble
-                          prompt={prompt}
-                          onPromptClick={() => followUpPromptClick(prompt)}
+                    <For each={[...starterPrompts()]}>
+                      {(key) => (
+                        <StarterPromptBubble
+                          prompt={key}
+                          onPromptClick={() => promptClick(key)}
                           starterPromptFontSize={botProps.starterPromptFontSize} // Pass it here as a number
                         />
                       )}
                     </For>
                   </div>
-                </>
+                </Show>
               </Show>
-            </Show>
+              <Show when={messages().length > 2 && followUpPromptsStatus()}>
+                <Show when={followUpPrompts().length > 0}>
+                  <>
+                    <div class="flex items-center gap-1 px-5">
+                      <SparklesIcon class="w-4 h-4" />
+                      <span class="text-sm text-gray-700">Try these prompts</span>
+                    </div>
+                    <div class="w-full flex flex-row flex-wrap px-5 py-[10px] gap-2">
+                      <For each={[...followUpPrompts()]}>
+                        {(prompt, index) => (
+                          <FollowUpPromptBubble
+                            prompt={prompt}
+                            onPromptClick={() => followUpPromptClick(prompt)}
+                            starterPromptFontSize={botProps.starterPromptFontSize} // Pass it here as a number
+                          />
+                        )}
+                      </For>
+                    </div>
+                  </>
+                </Show>
+              </Show>
+            </div>
+            <SuggestedActions actions={quickActions()} disabled={quickActionsDisabled()} onActionClick={(payload) => promptClick(payload)} />
             <Show when={previews().length > 0}>
               <div class="w-full flex items-center justify-start gap-2 px-5 pt-2 border-t border-[#eeeeee]">
                 <For each={[...previews()]}>{(item) => <>{previewDisplay(item)}</>}</For>
               </div>
             </Show>
-            <div class="w-full px-5 pt-2 pb-1">
+            <div class="w-full px-5 pt-2 pb-1 shrink-0">
               {isRecording() ? (
                 <>
                   {recordingNotSupported() ? (

@@ -553,36 +553,56 @@ button {
  * Precedent: the `.markdownanswer` rules above do this for bot bubbles.
  * Values are the contract — change both surfaces together.
  */
-.announcement-body p {
-  margin: 0 0 8px;
+/* The header already draws a rule, so the topmost card must not draw a second one. */
+.announcement-scroller > .announcement-card:first-child {
+  border-top: none;
 }
+/* Here rather than inline: Solid's CSSProperties type has no `text-wrap`. */
+.announcement-title {
+  text-wrap: balance;
+}
+.announcement-body p {
+  margin: 0 0 10px;
+}
+/* A heading needs more space above it than a paragraph gets below it, or sections
+ * do not group: with equal margins the reader sees one stream of text. Size and
+ * colour carry the hierarchy — weight alone cannot, because `strong` is also 600. */
 .announcement-body h3 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 650;
   line-height: 1.3;
-  margin: 0 0 6px;
+  color: #0b1220;
+  margin: 22px 0 6px;
 }
 .announcement-body h4 {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 650;
   line-height: 1.3;
-  margin: 0 0 6px;
+  color: #0b1220;
+  margin: 18px 0 6px;
+}
+.announcement-body > h3:first-child,
+.announcement-body > h4:first-child {
+  margin-top: 0;
 }
 .announcement-body ul {
   list-style: disc outside;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   padding-left: 20px;
 }
 .announcement-body ol {
   list-style: decimal outside;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   padding-left: 20px;
 }
 .announcement-body li {
   margin: 0 0 2px;
 }
+/* Darker rather than heavier: headings are 650, so extra weight here would make an
+ * emphasised phrase read as a heading. Colour separates them without adding weight. */
 .announcement-body strong {
   font-weight: 600;
+  color: #0b1220;
 }
 .announcement-body em {
   font-style: italic;
@@ -603,10 +623,12 @@ button {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .announcement-body blockquote {
-  margin: 0 0 8px;
-  padding-left: 10px;
-  border-left: 3px solid #e5e7eb;
-  color: #6b7280;
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border-left: 3px solid #0f6b5c;
+  border-radius: 0 8px 8px 0;
+  background: #f5f8f7;
+  color: #47555f;
 }
 .announcement-body > *:last-child {
   margin-bottom: 0;

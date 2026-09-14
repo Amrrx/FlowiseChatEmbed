@@ -3,6 +3,20 @@ import { Portal } from 'solid-js/web';
 import { Announcement, fetchActiveAnnouncements, markAnnouncementsRead } from '@/api/announcements';
 import { renderAnnouncementBody, resolveMediaUrl } from './announcementMarkdown';
 
+/* Category is shown as a chip so the kind of announcement reads before the words do.
+ * Tints are separate from the blue call-to-action: one says what this is, the other
+ * says what to do. Mirrored in the dashboard panel's CSS — change both together. */
+const CATEGORY_LABEL: Record<string, string> = { feature: 'Feature', fix: 'Fix', notice: 'Notice' };
+const CATEGORY_TINT: Record<string, string> = { feature: '#e3efeb', fix: '#fdeee4', notice: '#eef1f5' };
+const CATEGORY_INK: Record<string, string> = { feature: '#0f6b5c', fix: '#a8542a', notice: '#4b5563' };
+
+/** Day-level date for a card. An announcement is news, so the clock time adds nothing. */
+const formatAnnouncementDate = (iso: string): string => {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+};
+
 export type AnnouncementsController = {
   announcements: () => Announcement[];
   unreadCount: () => number;
@@ -232,20 +246,48 @@ export const AnnouncementsButton = (props: Props) => {
   );
 
   const Card = (p: { a: Announcement }) => (
-    <div style={{ padding: '12px 18px 18px', 'border-top': '1px solid #f1f1f4' }}>
-      <div style={{ 'font-size': '14px', 'font-weight': '600', 'margin-bottom': '6px' }}>{p.a.title}</div>
+    <div class="announcement-card" style={{ padding: '20px 24px 26px', 'border-top': '1px solid #f1f1f4' }}>
+      <div style={{ display: 'flex', 'align-items': 'center', gap: '10px', 'margin-bottom': '10px', 'font-size': '11.5px', color: '#6b7280' }}>
+        <span
+          data-testid="announcement-category"
+          style={{
+            background: CATEGORY_TINT[p.a.category] ?? CATEGORY_TINT.notice,
+            color: CATEGORY_INK[p.a.category] ?? CATEGORY_INK.notice,
+            'font-weight': '600',
+            padding: '3px 9px',
+            'border-radius': '999px',
+            'font-size': '11px',
+          }}
+        >
+          {CATEGORY_LABEL[p.a.category] ?? p.a.category}
+        </span>
+        <span data-testid="announcement-date">{formatAnnouncementDate(p.a.created_at)}</span>
+      </div>
+      <div
+        class="announcement-title"
+        style={{
+          'font-size': '20px',
+          'font-weight': '650',
+          'line-height': '1.25',
+          'letter-spacing': '-0.01em',
+          color: '#0b1220',
+          'margin-bottom': '14px',
+        }}
+      >
+        {p.a.title}
+      </div>
       <Show when={p.a.media}>
         <img
           data-testid="announcement-media"
           src={resolveMediaUrl(p.a.media!.url, props.apiHost)}
           alt=""
-          style={{ 'max-width': '100%', 'border-radius': '10px', 'margin-bottom': '8px' }}
+          style={{ width: '100%', 'border-radius': '10px', display: 'block', 'margin-bottom': '16px', border: '1px solid #eef0ef' }}
         />
       </Show>
       <div
         class="announcement-body"
         data-testid="announcement-body"
-        style={{ 'font-size': '13px', 'line-height': '1.5', color: '#374151', 'word-break': 'break-word' }}
+        style={{ 'font-size': '14px', 'line-height': '1.6', color: '#374151', 'word-break': 'break-word', 'max-width': '62ch' }}
         innerHTML={renderAnnouncementBody(p.a.body)}
       />
       <Show when={p.a.cta}>
@@ -255,13 +297,13 @@ export const AnnouncementsButton = (props: Props) => {
           rel="noopener noreferrer"
           style={{
             display: 'inline-block',
-            'margin-top': '10px',
-            padding: '8px 16px',
+            'margin-top': '16px',
+            padding: '10px 20px',
             background: '#2563eb',
             color: '#fff',
-            'border-radius': '8px',
-            'font-size': '13px',
-            'font-weight': '500',
+            'border-radius': '9px',
+            'font-size': '14px',
+            'font-weight': '600',
             'text-decoration': 'none',
           }}
         >
@@ -343,21 +385,35 @@ export const AnnouncementsButton = (props: Props) => {
               'backdrop-filter': 'blur(2px)',
             }}
           >
+            {/* Header and footer are flex siblings of the scroller rather than children of
+                it: the close button and the earlier-announcements toggle both have to stay
+                reachable, and a feature announcement runs several screens. */}
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
                 background: '#fff',
                 color: '#111827',
                 'border-radius': '16px',
-                width: 'min(92%, 440px)',
-                'max-height': '80vh',
-                overflow: 'auto',
+                width: 'min(94%, 600px)',
+                'max-height': '86vh',
+                display: 'flex',
+                'flex-direction': 'column',
+                overflow: 'hidden',
                 'box-shadow': '0 20px 60px rgba(0,0,0,0.35)',
                 'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
               }}
             >
-              <div style={{ display: 'flex', 'align-items': 'center', 'justify-content': 'space-between', padding: '16px 18px 8px' }}>
-                <span style={{ 'font-size': '15px', 'font-weight': '700' }}>What's new</span>
+              <div
+                style={{
+                  display: 'flex',
+                  'align-items': 'center',
+                  'justify-content': 'space-between',
+                  padding: '14px 24px',
+                  'border-bottom': '1px solid #eef0ef',
+                  flex: 'none',
+                }}
+              >
+                <span style={{ 'font-size': '12px', 'font-weight': '600', color: '#6b7280' }}>What's new</span>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
@@ -367,44 +423,61 @@ export const AnnouncementsButton = (props: Props) => {
                 </button>
               </div>
 
-              <Show
-                when={newAnnouncements().length > 0}
-                fallback={
-                  <div style={{ padding: '28px 18px', 'text-align': 'center', color: '#6b7280', 'font-size': '13px' }}>
-                    <div style={{ 'font-size': '22px', 'margin-bottom': '6px' }}>🎉</div>
-                    You're all caught up
-                  </div>
-                }
-              >
-                <For each={newAnnouncements()}>{(a) => <Card a={a} />}</For>
-              </Show>
-
-              <Show when={earlierAnnouncements().length > 0}>
-                <button
-                  type="button"
-                  onClick={() => setShowEarlier((v) => !v)}
-                  style={{
-                    display: 'flex',
-                    'align-items': 'center',
-                    'justify-content': 'center',
-                    gap: '6px',
-                    width: '100%',
-                    padding: '12px 18px',
-                    background: '#fafafa',
-                    border: 'none',
-                    'border-top': '1px solid #f1f1f4',
-                    cursor: 'pointer',
-                    color: '#6b7280',
-                    'font-size': '13px',
-                    'font-weight': '600',
-                  }}
+              <div class="announcement-scroller" style={{ overflow: 'auto', flex: '1' }}>
+                <Show
+                  when={newAnnouncements().length > 0}
+                  fallback={
+                    <div style={{ padding: '32px 24px', 'text-align': 'center', color: '#6b7280', 'font-size': '13px' }}>
+                      <div style={{ 'font-size': '22px', 'margin-bottom': '6px' }}>🎉</div>
+                      You're all caught up
+                    </div>
+                  }
                 >
-                  <span style={{ 'font-size': '9px', transform: showEarlier() ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
-                  {showEarlier() ? 'Hide earlier' : 'Show earlier'} ({earlierAnnouncements().length})
-                </button>
+                  <For each={newAnnouncements()}>{(a) => <Card a={a} />}</For>
+                </Show>
+
                 <Show when={showEarlier()}>
                   <For each={earlierAnnouncements()}>{(a) => <Card a={a} />}</For>
                 </Show>
+              </div>
+
+              <Show when={earlierAnnouncements().length > 0}>
+                <div
+                  style={{
+                    display: 'flex',
+                    'align-items': 'center',
+                    'justify-content': 'space-between',
+                    gap: '14px',
+                    padding: '12px 24px',
+                    'border-top': '1px solid #eef0ef',
+                    background: '#fff',
+                    flex: 'none',
+                  }}
+                >
+                  <span style={{ 'font-size': '12px', color: '#9ca3af' }}>
+                    {newAnnouncements().length > 0 ? `${newAnnouncements().length} new` : 'Nothing new'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowEarlier((v) => !v)}
+                    style={{
+                      display: 'flex',
+                      'align-items': 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: '#f5f6f7',
+                      border: 'none',
+                      'border-radius': '8px',
+                      cursor: 'pointer',
+                      color: '#4b5563',
+                      'font-size': '13px',
+                      'font-weight': '600',
+                    }}
+                  >
+                    <span style={{ 'font-size': '9px', transform: showEarlier() ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▼</span>
+                    {showEarlier() ? 'Hide earlier' : 'Show earlier'} ({earlierAnnouncements().length})
+                  </button>
+                </div>
               </Show>
             </div>
           </div>

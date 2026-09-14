@@ -28,13 +28,14 @@
         const params = new URLSearchParams(window.location.search);
         const protocol = params.get('protocol') ?? 'ag-ui';
         const userId = params.get('userId') ?? 'test-user';
+        const agentId = params.get('agentId') ?? 'test-agent';
 
         Chatbot.initFull({
             chatflowid: 'test-chatflow',
             apiHost: 'http://localhost:9091',
             protocol,
             apiPath: '/chat',
-            agentId: 'test-agent',
+            agentId,
             id: 'chat-container',
             chatflowConfig: {
                 sessionId: `session_${Date.now()}`,
