@@ -51,18 +51,20 @@ export const renderAnnouncementBody = (body: string): string => {
   return host.innerHTML.trim();
 };
 
+const ABSOLUTE_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+
 /**
  * Resolve a stored media url against the API host.
  *
- * Standard URL resolution covers both cases with one rule: a relative path takes
- * the base, and an absolute url ignores it — so no branch on media_id is needed.
- * Wrapped because a malformed stored value must not throw inside a render.
+ * Joined by concatenation, NOT by URL resolution: `new URL('/api/x', 'https://host/core')`
+ * gives `https://host/api/x`, because a root-relative path replaces the base's entire path.
+ * An apiHost carrying a prefix loses it that way, and the request lands on the embedding
+ * page's app shell instead of the API. The fetch calls in api/announcements.ts build their
+ * urls by concatenation, so this keeps one join rule for the whole module.
  */
 export const resolveMediaUrl = (url: string, apiHost: string): string => {
   if (!url) return '';
-  try {
-    return new URL(url, apiHost || undefined).toString();
-  } catch {
-    return url;
-  }
+  if (ABSOLUTE_URL.test(url)) return url;
+  if (!apiHost) return url;
+  return `${apiHost.replace(/\/+$/, '')}/${url.replace(/^\/+/, '')}`;
 };
