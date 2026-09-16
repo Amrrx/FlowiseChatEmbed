@@ -10,6 +10,7 @@ type BotProps = {
     chatflowConfig?: Record<string, unknown>;
     observersConfig?: observersConfigType;
     theme?: BubbleTheme;
+    id?: string;
 };
 export declare const initFull: (props: BotProps & {
     id?: string;

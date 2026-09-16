@@ -99,10 +99,15 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
 
   const layout = () => bubbleProps.theme?.chatWindow?.layout ?? 'floating';
   const isSidebarMode = () => layout() === 'sidebar' && viewportWidth() >= sidebarMinViewportWidth;
+  // Renders unpositioned, filling whatever box the host placed the element in
+  // (see window.ts's init({id}) adoption option) — no launcher, no fixed
+  // positioning/transform, opens immediately. Host owns visibility via its own
+  // CSS, so there is nothing here for isBotOpened() to gate.
+  const isInlineMode = () => layout() === 'inline';
   // Clamped so a misconfigured width can't render a degenerate panel or hand the
   // host a margin that doesn't match what was drawn.
   const sidebarWidth = () => Math.max(minSidebarWidth, Math.min(bubbleProps.theme?.chatWindow?.width ?? defaultSidebarWidth, viewportWidth()));
-  const hideLauncher = () => bubbleProps.theme?.button?.hideLauncher ?? false;
+  const hideLauncher = () => isInlineMode() || (bubbleProps.theme?.button?.hideLauncher ?? false);
   const themeColor = () => bubbleProps.theme?.themeColor;
 
   const backgroundStyle = () => ({
@@ -124,6 +129,16 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
 
   createEffect(() => emitSidebarState(isSidebarMode() && isBotOpened()));
   onCleanup(() => emitSidebarState(false));
+
+  // Inline mode has no launcher/click-to-open affordance of its own — the host
+  // controls visibility entirely via its own CSS around this element — so open
+  // immediately once mounted rather than waiting for a toggle. Effect (not a
+  // seeded signal) because `theme` can be reassigned in place by a repeated
+  // host-side init() call (see window.ts), so this self-heals if the 'inline'
+  // layout arrives a tick after first render.
+  createEffect(() => {
+    if (isInlineMode() && !isBotOpened()) openBot();
+  });
 
   // Host-supplied trigger, for embeds that hide the built-in launcher.
   onMount(() => {
@@ -307,8 +322,24 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   };
 
   // Sidebar docks to the right edge full-height and slides in horizontally; floating
-  // keeps the corner-anchored, resizable window that unfolds from the button.
+  // keeps the corner-anchored, resizable window that unfolds from the button; inline
+  // has no chrome of its own at all — it just fills whatever box the host gave it.
   const panelStyle = () => {
+    if (isInlineMode()) {
+      return {
+        ...backgroundStyle(),
+        position: 'static' as const,
+        width: '100%',
+        height: '100%',
+        'max-height': 'none',
+        transform: 'none',
+        opacity: 1,
+        'box-shadow': 'none',
+        'border-radius': '0',
+        'z-index': 'auto',
+      };
+    }
+
     if (isSidebarMode()) {
       return {
         ...backgroundStyle(),
@@ -343,6 +374,7 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   };
 
   const panelClass = () => {
+    if (isInlineMode()) return 'relative w-full h-full';
     const visibility = isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none';
     if (isSidebarMode()) return 'fixed inset-y-0 right-0' + visibility;
     return `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` + visibility + ` bottom-${chatWindowBottom}px`;
@@ -393,7 +425,7 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
         />
       </Show>
       <div part="bot" ref={windowRef} style={panelStyle()} class={panelClass()}>
-        <Show when={isBotOpened() && !isSidebarMode()}>
+        <Show when={isBotOpened() && !isSidebarMode() && !isInlineMode()}>
           <div
             class="hidden sm:flex opacity-90 hover:opacity-100 transition-opacity duration-150"
             style={gripStyle()}
@@ -407,7 +439,7 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
         </Show>
         <Show when={isBotStarted()}>
           <div class="relative h-full">
-            <Show when={isBotOpened()}>
+            <Show when={isBotOpened() && !isInlineMode()}>
               {/* Cross button For only mobile screen use this <Show when={isBotOpened() && window.innerWidth <= 640}>  */}
               <button
                 onClick={closeBot}
@@ -429,7 +461,7 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
               badgeBackgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
               bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor() ?? defaultButtonColor}
               bubbleTextColor={bubbleProps.theme?.button?.iconColor ?? defaultIconColor}
-              squareCorners={isSidebarMode()}
+              squareCorners={isSidebarMode() || isInlineMode()}
               titleHeight={bubbleProps.theme?.chatWindow?.titleHeight}
               showTitle={bubbleProps.theme?.chatWindow?.showTitle}
               showAgentMessages={bubbleProps.theme?.chatWindow?.showAgentMessages}

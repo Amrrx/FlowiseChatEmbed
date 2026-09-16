@@ -62,8 +62,12 @@ export type FeedbackTheme = {
 export type ChatWindowTheme = {
   // 'sidebar' docks the chat window to the right edge full-height and emits
   // 'flowise-sidebar-toggle' so the host page can push its own layout aside.
-  // Falls back to 'floating' below 768px viewport width. Defaults to 'floating'.
-  layout?: 'floating' | 'sidebar';
+  // Falls back to 'floating' below 768px viewport width.
+  // 'inline' renders unpositioned, filling whatever box the host places the
+  // element in (see window.ts's init({id}) adoption option) — no launcher, no
+  // fixed/transform chrome, opens immediately, ignores sidebarMinViewportWidth.
+  // Defaults to 'floating'.
+  layout?: 'floating' | 'sidebar' | 'inline';
   showTitle?: boolean;
   showAgentMessages?: boolean; // parameter to show agent reasonings when using agentflows
   title?: string;
