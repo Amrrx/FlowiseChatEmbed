@@ -3808,6 +3808,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 </>
               ) : (
                 <TextInput
+                  squareCorners={props.squareCorners}
                   backgroundColor={props.textInput?.backgroundColor}
                   textColor={props.textInput?.textColor}
                   placeholder={isRtl() ? props.textInput?.placeholder_rtl ?? 'اكتب سؤالك' : props.textInput?.placeholder}

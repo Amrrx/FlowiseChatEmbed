@@ -28,6 +28,9 @@ type TextInputProps = {
   fullFileUploadAllowedTypes?: string;
   enableInputHistory?: boolean;
   maxHistorySize?: number;
+  // Same flag Bot.tsx uses to flatten the title bar's corners for sidebar/inline
+  // layouts — the composer needs it too, it just never got wired through.
+  squareCorners?: boolean;
 };
 
 const defaultBackgroundColor = '#ffffff';
@@ -145,7 +148,7 @@ export const TextInput = (props: TextInputProps) => {
         margin: 'auto',
         'background-color': props.backgroundColor ?? defaultBackgroundColor,
         color: props.textColor ?? defaultTextColor,
-        'border-radius': '28px',
+        'border-radius': props.squareCorners ? '0px' : '28px',
         border: '2px solid rgba(59, 130, 246, 0.2)',
         'box-shadow': '0 2px 12px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06)',
         overflow: 'hidden',

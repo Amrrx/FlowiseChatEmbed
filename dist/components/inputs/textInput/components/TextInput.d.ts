@@ -23,6 +23,7 @@ type TextInputProps = {
     fullFileUploadAllowedTypes?: string;
     enableInputHistory?: boolean;
     maxHistorySize?: number;
+    squareCorners?: boolean;
 };
 export declare const TextInput: (props: TextInputProps) => import("solid-js").JSX.Element;
 export {};
