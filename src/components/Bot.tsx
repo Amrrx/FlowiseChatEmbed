@@ -723,6 +723,11 @@ const FormInputView = (props: {
   );
 };
 
+// Looked up by id at event time, not by a remembered position: cards remove completed tool
+// bubbles as they arrive, which shifts every later message's position.
+const findToolCallMessageIndex = (messages: MessageType[], toolCallId: string): number =>
+  messages.findIndex((m) => m.type === 'toolCallMessage' && m.toolCalls?.some((tc) => tc.toolCallId === toolCallId));
+
 const replaceMessageVariables = (message: string, sessionId: string): string => {
   // {sessionId} is the canonical template placeholder for the conversation identifier.
   // {chatId} kept as a legacy alias resolving to the same value.
@@ -1595,7 +1600,6 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
     let lastProgressCardId: string | null = null;
     let compactedThisTurn = false;
-    const toolCallMessageIndex = new Map<string, number>();
 
     const aguiHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -1662,7 +1666,6 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             setMessages((prev) => {
               const all = [...cloneDeep(prev)];
               all.push({ message: '', type: 'toolCallMessage' as messageType, toolCalls: [tcData] });
-              toolCallMessageIndex.set(action.toolCallId, all.length - 1);
               return all;
             });
             break;
@@ -1671,8 +1674,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           case 'tool_call_args': {
             setMessages((prev) => {
               const all = [...cloneDeep(prev)];
-              const msgIdx = toolCallMessageIndex.get(action.toolCallId);
-              if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
+              const msgIdx = findToolCallMessageIndex(all, action.toolCallId);
+              if (msgIdx === -1) return all;
               all[msgIdx] = {
                 ...all[msgIdx],
                 toolCalls: all[msgIdx].toolCalls!.map((tc) => (tc.toolCallId === action.toolCallId ? { ...tc, args: tc.args + action.delta } : tc)),
@@ -1685,8 +1688,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           case 'tool_call_end': {
             setMessages((prev) => {
               const all = [...cloneDeep(prev)];
-              const msgIdx = toolCallMessageIndex.get(action.toolCallId);
-              if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
+              const msgIdx = findToolCallMessageIndex(all, action.toolCallId);
+              if (msgIdx === -1) return all;
               all[msgIdx] = {
                 ...all[msgIdx],
                 // Don't overwrite a 'cancelled' status — that was set by the user
