@@ -12,8 +12,8 @@ type Props = {
 const statusColor = (value: string): string => {
   const v = String(value).toLowerCase();
   if (v === 'moving' || v === 'on' || v === 'true' || v === 'excellent' || v === 'good' || v === 'stable') return '#16a34a';
-  if (v === 'idling' || v === 'fair') return '#d97706';
-  if (v === 'stopped' || v === 'off' || v === 'false' || v === 'offline' || v === 'poor') return '#dc2626';
+  if (v === 'idling' || v === 'fair' || v === 'declining') return '#d97706';
+  if (v === 'stopped' || v === 'off' || v === 'false' || v === 'offline' || v === 'poor' || v === 'critical') return '#dc2626';
   return '#6b7280';
 };
 
@@ -61,6 +61,37 @@ const MetricCell = (props: { label: string; value: any; unit?: string; badge?: b
           ) : (
             ''
           )}
+        </span>
+      )}
+    </div>
+  );
+};
+
+const BATTERY_EMPTY_STATES: Record<string, string> = { no_sensor: 'No sensor', no_data: 'No data', unknown: '\u2014' };
+
+// Battery health as the same pill as the other health badges, band + average volts on one line;
+// states without a reading render muted text, not a pill.
+const BatteryHealthCell = (props: { health: any; voltage: any }) => {
+  const health = () => String(props.health ?? 'unknown').toLowerCase();
+  const emptyLabel = () => BATTERY_EMPTY_STATES[health()];
+  const label = () => health().charAt(0).toUpperCase() + health().slice(1);
+  const volts = () => (typeof props.voltage === 'number' ? ` \u00b7 ${props.voltage.toFixed(1)}V` : '');
+  return (
+    <div class="flex flex-col">
+      <span class="text-[10px] uppercase tracking-wide" style={{ color: '#9ca3af' }}>
+        Batt. Health
+      </span>
+      {emptyLabel() ? (
+        <span class="text-sm" style={{ color: '#9ca3af' }}>
+          {emptyLabel()}
+        </span>
+      ) : (
+        <span
+          class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap"
+          style={{ 'background-color': statusColor(health()) + '18', color: statusColor(health()) }}
+        >
+          {label()}
+          {volts()}
         </span>
       )}
     </div>
@@ -142,7 +173,7 @@ export const DeviceCardBubble = (props: Props) => {
         <div class="grid grid-cols-3 gap-3 mb-1">
           <MetricCell label="Connection" value={d().connection} badge />
           <MetricCell label="GPS" value={d().gps} badge />
-          <MetricCell label="Batt. Health" value={d().battery_health} badge />
+          <BatteryHealthCell health={d().battery_health} voltage={d().battery_health_voltage} />
         </div>
 
         <Divider />
