@@ -100,24 +100,26 @@ const FailedCheck = (props: { check: ValidationCheck; rcaHint: RCAEntry | undefi
       </span>
       <PriorityBadge priority={props.check.priority} />
     </div>
-    <div class="grid grid-cols-2 gap-2 mt-1.5 ms-4">
-      <div>
-        <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>
-          Expected
-        </span>
-        <div class="text-[12px] font-medium" style={{ color: '#16a34a' }}>
-          {props.check.expected}
+    <Show when={props.check.expected || props.check.actual}>
+      <div class="grid grid-cols-2 gap-2 mt-1.5 ms-4">
+        <div>
+          <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>
+            Expected
+          </span>
+          <div class="text-[12px] font-medium" style={{ color: '#16a34a' }}>
+            {props.check.expected}
+          </div>
+        </div>
+        <div>
+          <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>
+            Actual
+          </span>
+          <div class="text-[12px] font-medium" style={{ color: '#dc2626' }}>
+            {props.check.actual}
+          </div>
         </div>
       </div>
-      <div>
-        <span class="text-[10px] uppercase" style={{ color: '#9ca3af' }}>
-          Actual
-        </span>
-        <div class="text-[12px] font-medium" style={{ color: '#dc2626' }}>
-          {props.check.actual}
-        </div>
-      </div>
-    </div>
+    </Show>
     <Show when={props.rcaHint}>
       <div class="mt-1.5 ms-4 flex items-start gap-1 text-[11px]" style={{ color: '#92400e' }}>
         <span>{'\uD83D\uDCA1'}</span>
