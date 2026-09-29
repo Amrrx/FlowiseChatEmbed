@@ -1,5 +1,6 @@
 import { Component } from 'solid-js';
 import type { Notification } from '@/api/notifications';
+import { formatTimeAgo } from '@/utils';
 
 const LEVEL_STYLES: Record<string, { border: string; bg: string; dot: string; title: string }> = {
   success: { border: '#22c55e', bg: '#0a2a1a', dot: '#22c55e', title: '#22c55e' },
@@ -7,15 +8,6 @@ const LEVEL_STYLES: Record<string, { border: string; bg: string; dot: string; ti
   warning: { border: '#f59e0b', bg: '#2a1a0a', dot: '#f59e0b', title: '#f59e0b' },
   error: { border: '#ef4444', bg: '#2a0a0a', dot: '#ef4444', title: '#ef4444' },
 };
-
-function formatTimeAgo(isoString: string): string {
-  const diff = Date.now() - new Date(isoString.replace(/([+-]\d{2}:\d{2})Z$/, '$1')).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
 
 type Props = {
   notification: Notification;
