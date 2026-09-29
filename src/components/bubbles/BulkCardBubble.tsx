@@ -10,11 +10,6 @@ type Props = {
   onAction: (card: CardData, action: CardAction, payload: Record<string, any>) => void;
 };
 
-const OPERATION_LABELS: Record<string, string> = {
-  avl_unit_rename_bulk: 'Bulk rename',
-  avl_bulk_test_echo: 'Bulk test',
-};
-
 export const BulkCardBubble = (props: Props) => {
   const data = () => props.card.data;
   const isSummary = () => props.card.type_id === 'bulk_summary';
@@ -26,7 +21,7 @@ export const BulkCardBubble = (props: Props) => {
   const status = () => (data().status as string) ?? 'running';
   const running = () => !isSummary() && status() === 'running';
   const percent = () => (total() > 0 ? Math.round((completed() / total()) * 100) : 0);
-  const operationLabel = () => OPERATION_LABELS[data().operation_name as string] ?? (data().operation_name as string) ?? 'Bulk operation';
+  const operationLabel = () => (data().operation_label as string) ?? (data().operation_name as string) ?? 'Bulk operation';
 
   const [actionSent, setActionSent] = createSignal<string | null>(null);
 

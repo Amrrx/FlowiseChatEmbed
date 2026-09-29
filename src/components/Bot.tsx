@@ -838,7 +838,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [isLeadSaved, setIsLeadSaved] = createSignal(false);
   const [leadEmail, setLeadEmail] = createSignal('');
   const [disclaimerPopupOpen, setDisclaimerPopupOpen] = createSignal(false);
-  const [activeTask, setActiveTask] = createSignal<(TaskLockData & { progress_message?: string }) | null>(null);
+  // Running task locks keyed by task_id — several can run at once (e.g. maintenance submitted in one turn).
+  const [activeTasks, setActiveTasks] = createSignal<Record<string, TaskLockData>>({});
   const [compacting, setCompacting] = createSignal(false);
 
   const [openFeedbackDialog, setOpenFeedbackDialog] = createSignal(false);
@@ -961,8 +962,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
   // Persistent SSE connection for proactive event delivery
   const handleStreamEvent = (event: StreamEvent) => {
-    const task = activeTask();
-    if (task && event.task_id === task.task_id) {
+    const task = event.task_id ? activeTasks()[event.task_id] : undefined;
+    if (task) {
       const steps = (task.context?.steps ?? []) as Array<{ step_id: string; label: string; triggers: string[] }>;
       const isFinal = task.final_statuses?.includes(event.status);
 
@@ -996,7 +997,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       }
 
       if (isFinal) {
-        setActiveTask(null);
+        setActiveTasks((prev) => {
+          const { [task.task_id]: _finished, ...running } = prev;
+          return running;
+        });
       }
       return;
     }
@@ -1652,7 +1656,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             break;
 
           case 'task_lock':
-            setActiveTask(action.lock);
+            setActiveTasks((prev) => ({ ...prev, [action.lock.task_id]: action.lock }));
             break;
 
           case 'state_delta':
@@ -2795,7 +2799,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const messagesArray = messages();
     const disabled =
       loading() ||
-      !!activeTask() ||
+      Object.keys(activeTasks()).length > 0 ||
       !props.chatflowid ||
       (leadsConfig()?.status && !isLeadSaved()) ||
       (messagesArray.length > 0 &&
