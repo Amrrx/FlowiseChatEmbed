@@ -159,6 +159,13 @@ export type MessageType = {
   toolCalls?: ToolCallData[];
 };
 
+// Cards whose state is final when shown survive a page reload. Live or interactive cards
+// (progress, bulk progress, confirm, selection) depended on the page's event stream.
+const RESTORABLE_CARD_TYPES: CardData['type_id'][] = ['entity', 'bulk_summary'];
+
+const isRestorableMessage = (message: MessageType): boolean =>
+  message.type !== 'cardMessage' || (!!message.card && RESTORABLE_CARD_TYPES.includes(message.card.type_id));
+
 type IUploads = {
   data: FilePreviewData;
   type: string;
@@ -2261,6 +2268,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 if (message.action) chatHistory.action = message.action;
                 if (message.artifacts) chatHistory.artifacts = message.artifacts;
                 if (message.followUpPrompts) chatHistory.followUpPrompts = message.followUpPrompts;
+                if (message.card) chatHistory.card = message.card;
                 if (message.execution && message.execution.executionData)
                   chatHistory.agentFlowExecutedData =
                     typeof message.execution.executionData === 'string'
@@ -2273,7 +2281,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               })
             : [{ message: props.welcomeMessage ?? defaultWelcomeMessage, type: 'apiMessage' }];
 
-        const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage');
+        const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage' && isRestorableMessage(message));
         setMessages([...filteredMessages]);
       }
     } catch (e) {

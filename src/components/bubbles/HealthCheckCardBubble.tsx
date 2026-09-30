@@ -139,7 +139,7 @@ const PassedCheck = (props: { check: ValidationCheck }) => (
   <div class="flex items-center gap-1.5 py-0.5">
     <span style={{ color: '#16a34a', 'font-size': '11px' }}>{'\u2713'}</span>
     <span class="text-[12px]" style={{ color: '#4b5563' }}>
-      {props.check.comment}
+      {props.check.text || props.check.comment}
     </span>
   </div>
 );
