@@ -136,7 +136,7 @@ export const ReportsPanel = (props: {
             </Show>
             <ReportsIcon />
             <h2>Reports</h2>
-            <span class="report-scope">This conversation</span>
+            <span class="report-scope">My reports</span>
             <button type="button" class="report-close" onClick={close} aria-label="Close reports">
               ×
             </button>

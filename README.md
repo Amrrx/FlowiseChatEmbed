@@ -217,9 +217,10 @@ You can also customize chatbot with different configuration
 ## Reports panel (Mosaad AG-UI integration)
 
 When the MCP gateway acknowledges Reports support for the authenticated agent, the widget shows a Reports
-button. The panel lists this conversation's queued, running, ready, failed, cancelled and expired reports;
+button. My reports lists the authenticated user's queued, running, ready, failed, cancelled and expired reports
+across conversations within the same environment and agent; chat reset does not remove access to prior reports;
 ready reports offer a bounded preview and an authenticated Excel download until their result expires.
-Completion messages can reopen the corresponding report. Users can continue chatting while reports run.
+Completion messages remain in the originating conversation and can reopen the corresponding report. Users can continue chatting while reports run.
 
 - Requires the compatible Mosaad MCP/backend deployment and per-agent Reports policy. A widget update alone
   does not enable reporting. Existing agents without the capability keep their current behavior.

@@ -5,7 +5,7 @@
 1. `src/agui/useAgUiStream.ts` → verified SSE acknowledgement → feature flag and environment.
 2. `src/components/Bot.tsx` → current user, agent and conversation → `useReports.ts`.
 3. `useReports.ts` → authenticated run list and paginated follow-up recovery → `src/api/pipeline.ts`.
-4. Scope change or permission loss → abort pending requests/downloads → clear panel and report messages.
+4. Scope change or permission loss → abort pending requests/downloads → clear panel and report messages. Chat reset → fresh authorization/list → same user/environment/agent reports across conversations.
 
 ## Reports
 
@@ -19,7 +19,7 @@
 
 ## Completion and history
 
-1. Scoped SSE hint → list refresh; reconnect → paginated durable follow-ups.
+1. Conversation-scoped SSE hint → list refresh; reconnect → follow-ups from that conversation only. Report history remains user/environment/agent-scoped.
 2. Follow-up IDs + Flowise message IDs → update/deduplicate assistant history in `src/components/Bot.tsx`.
 3. Authenticated internal question markers → exact history suppression.
 4. Inline report cards → summary/reference only; report cards excluded from persisted history. Fresh authorized run metadata also updates their status, summary and expiry. Pending card references outside the current list page/filter use the same scoped run-detail API. Card arrival and completion events request a refresh, covering events received before the card.
