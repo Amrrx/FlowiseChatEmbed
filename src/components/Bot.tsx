@@ -1011,7 +1011,39 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       return previous.map((item, index) => (index === existing ? event : item));
     });
   };
-  const reports = useReports(reportScope, () => props.chatOpened?.() ?? true, queueReportFollowup, setInternalReportQuestions);
+  const reports = useReports(reportScope, () => props.chatOpened?.() ?? true, queueReportFollowup, setInternalReportQuestions, {
+    pendingRunIds: () =>
+      messages()
+        .filter((message) => isPipelineCard(message) && ['admitted', 'running'].includes(message.card?.data.status))
+        .map((message) => message.card!.data.run_id)
+        .filter(Boolean),
+    update: (runs) => {
+      const byId = new Map(runs.map((run) => [run.run_id, run]));
+      setMessages((previous) =>
+        previous.map((message) => {
+          if (!isPipelineCard(message)) return message;
+          const card = message.card!;
+          const run = byId.get(card.data.run_id);
+          if (!run) return message;
+          return {
+            ...message,
+            card: {
+              ...card,
+              data: {
+                ...card.data,
+                status: run.availability === 'expired' ? 'expired' : run.status,
+                row_count: run.result_summary?.row_count,
+                expected_count: run.result_summary?.expected_count,
+                complete: run.result_summary?.complete,
+                column_count: run.result_summary?.column_count,
+                expires_at: run.expires_at,
+              },
+            },
+          };
+        }),
+      );
+    },
+  });
 
   createEffect(() => {
     if (!reports.enabled()) {
@@ -1077,6 +1109,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         break;
       case 'bot_message':
         if (event.run_id) {
+          reports.event(event);
           queueReportFollowup(event as ReportFollowup);
           break;
         }
@@ -1096,10 +1129,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         ]);
         const apiHost = props.apiHost ?? '';
         const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
-        markNotificationsRead(
-          { apiHost, userId: vars.userId ?? '', userToken: vars.userToken ?? '', agentId: props.agentId ?? '' },
-          [notif.notification_id],
-        ).catch(/* no-op */ Function.prototype as () => void);
+        markNotificationsRead({ apiHost, userId: vars.userId ?? '', userToken: vars.userToken ?? '', agentId: props.agentId ?? '' }, [
+          notif.notification_id,
+        ]).catch(/* no-op */ Function.prototype as () => void);
         break;
       }
       case 'bulk_card':
@@ -1221,10 +1253,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const apiHost = props.apiHost ?? '';
     const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
     const ids = newNotifs.map((n) => n.notification_id);
-    markNotificationsRead(
-      { apiHost, userId: vars.userId ?? '', userToken: vars.userToken ?? '', agentId: props.agentId ?? '' },
-      ids,
-    ).catch(/* no-op */ Function.prototype as () => void);
+    markNotificationsRead({ apiHost, userId: vars.userId ?? '', userToken: vars.userToken ?? '', agentId: props.agentId ?? '' }, ids).catch(
+      /* no-op */ Function.prototype as () => void,
+    );
     stream.setUnreadCount(() => 0);
 
     setTimeout(() => {
@@ -1400,6 +1431,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       addChatMessage(allMessages);
       return allMessages;
     });
+    // Admission events can reach the widget before the tool's card is rendered.
+    if (card.data?.entity_type === 'pipeline_result' && card.data.run_id) void reports.refresh();
   };
 
   // Bulk cards republish with a fresh card_id on every update — match on the

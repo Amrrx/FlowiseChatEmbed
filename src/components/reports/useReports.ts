@@ -24,6 +24,7 @@ export function useReports(
   visible: Accessor<boolean>,
   onFollowup: (event: ReportFollowup) => void,
   onInternalQuestions: (questions: string[]) => void,
+  cards: { pendingRunIds: Accessor<string[]>; update: (runs: ReportRun[]) => void },
 ) {
   const [enabled, setEnabled] = createSignal(false);
   const [open, setOpen] = createSignal(false);
@@ -132,6 +133,16 @@ export function useReports(
       setCounts(result.counts);
       serverOffset = Date.parse(result.server_time) - Date.now();
       setClock(Date.now() + serverOffset);
+      cards.update(result.items);
+      // A filter/page may exclude an active chat card. Resolve only those pending
+      // run references, using the same authorization and request lifetime.
+      const listedIds = new Set(result.items.map((run) => run.run_id));
+      for (const id of new Set(untrack(cards.pendingRunIds))) {
+        if (listedIds.has(id)) continue;
+        const run = await pipelineRequest<ReportRun>(current, `runs/${encodeURIComponent(id)}`, signal);
+        if (epoch !== generation || signal.aborted) return;
+        cards.update([run]);
+      }
       if (!selectedId() && result.items[0]) setSelectedId(result.items[0].run_id);
       setError('');
       failures = 0;
@@ -323,7 +334,8 @@ export function useReports(
       event.environment !== s.environment
     )
       return;
-    if (event.type === 'pipeline_changed' || event.type === 'pipeline_report_changed') void refresh();
+    if (event.type === 'pipeline_changed' || event.type === 'pipeline_report_changed' || (event.type === 'bot_message' && event.run_id))
+      void refresh();
   };
   return {
     enabled,

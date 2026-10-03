@@ -13,6 +13,8 @@ async function fixture() {
   let connections = 0;
   let reportsEnabled = true;
   let accessDenied = false;
+  let runs: Record<string, any>[] = [];
+  let hideRuns = false;
   const scope = () => ({ user_id: 'report-test', agent_id: 'avl-agent', session_id: session, environment: 'afaqy.sa' });
   const frame = (event: Record<string, unknown>) => `data: ${JSON.stringify({ ...scope(), ...event })}\n\n`;
   const message = (id: string) => ({
@@ -55,11 +57,41 @@ async function fixture() {
       }
       json({
         principal: { user_id: 'report-test', environment: 'afaqy.sa' },
-        items: [],
-        total: 0,
+        items: hideRuns ? [] : runs,
+        total: hideRuns ? 0 : runs.length,
         counts: {},
         server_time: new Date().toISOString(),
       });
+    } else if (path.startsWith('/core/api/pipeline/runs/')) {
+      json(runs.find((run) => run.run_id === path.split('/').at(-1)));
+    } else if (path === '/core/chat/avl-agent') {
+      req.resume();
+      const run = {
+        run_id: 'card-run',
+        title: 'Units Inactive 7+ Days',
+        status: 'admitted',
+        availability: null,
+        admitted_at: new Date().toISOString(),
+        steps: [],
+        result_summary: null,
+      };
+      runs = [run];
+      const events = [
+        { type: 'RUN_STARTED' },
+        {
+          type: 'CUSTOM',
+          name: 'entity_card',
+          value: {
+            card_id: 'report-card',
+            type_id: 'entity',
+            data: { entity_type: 'pipeline_result', run_id: run.run_id, title: run.title, status: 'admitted' },
+            actions: [],
+          },
+        },
+        { type: 'RUN_FINISHED' },
+      ];
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      res.end(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''));
     } else if (path === '/core/api/pipeline/followups') {
       recoveries++;
       json({ items: followups, internal_questions: [], next_offset: null });
@@ -72,6 +104,17 @@ async function fixture() {
     url: `http://127.0.0.1:${address.port}`,
     message,
     emit,
+    updateRun: (status: string, outsidePage = false) => {
+      hideRuns = outsidePage;
+      runs = runs.map((run) => ({
+        ...run,
+        status,
+        availability: status === 'ready' ? 'ready' : null,
+        expires_at: new Date(Date.now() + 86400000).toISOString(),
+        result_summary: status === 'ready' ? { row_count: 390, column_count: 4, expected_count: 390, complete: true } : null,
+      }));
+      emit({ type: 'pipeline_changed', run_id: 'card-run' });
+    },
     recoveries: () => recoveries,
     connections: () => connections,
     denyAccess: (denied: boolean) => {
@@ -177,3 +220,37 @@ test('API denial drops live completion safely; stream reconnect restores it from
   await expect(page.getByText(completion.text, { exact: true })).toHaveCount(1);
   await expect(page.locator('.reports-panel')).toHaveCount(0);
 });
+
+for (const outsidePage of [false, true]) {
+  test(`submission card follows authoritative status with Reports closed (outside page: ${outsidePage})`, async ({ page }, testInfo) => {
+    const input = page.getByRole('textbox');
+    await input.fill('Generate the inactive units report');
+    await input.press('Enter');
+    const card = page.locator('div.rounded-lg').filter({ has: page.getByText('Units Inactive 7+ Days', { exact: true }) });
+    await expect(card.getByText('Queued', { exact: true })).toBeVisible();
+    backend.updateRun('running', outsidePage);
+    await expect(card.getByText('running', { exact: true })).toBeVisible();
+    backend.updateRun('ready', outsidePage);
+    backend.emit(backend.message('card-run'));
+    await expect(page.getByText('Report card-run is ready.', { exact: true })).toBeVisible();
+    await expect(card.getByText('Complete', { exact: true })).toBeVisible();
+    await expect(card.getByText('390', { exact: true })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Download Excel', exact: true })).toBeEnabled();
+    await expect(card.getByText('Queued', { exact: true })).toHaveCount(0);
+    await expect(page.locator('.reports-panel')).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('report-card-ready.png') });
+  });
+}
+
+for (const terminal of ['failed', 'cancelled']) {
+  test(`submission card shows ${terminal} without offering a download`, async ({ page }) => {
+    await page.getByRole('textbox').fill('Generate a report');
+    await page.getByRole('textbox').press('Enter');
+    const card = page.locator('div.rounded-lg').filter({ has: page.getByText('Units Inactive 7+ Days', { exact: true }) });
+    await expect(card.getByText('Queued', { exact: true })).toBeVisible();
+    backend.updateRun(terminal, true);
+    await expect(card.getByText(terminal, { exact: true })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Download Excel', exact: true })).toHaveCount(0);
+    await expect(card.getByText('Queued', { exact: true })).toHaveCount(0);
+  });
+}

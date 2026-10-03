@@ -22,7 +22,7 @@
 1. Scoped SSE hint → list refresh; reconnect → paginated durable follow-ups.
 2. Follow-up IDs + Flowise message IDs → update/deduplicate assistant history in `src/components/Bot.tsx`.
 3. Authenticated internal question markers → exact history suppression.
-4. Inline report cards → summary/reference only; report cards excluded from persisted history.
+4. Inline report cards → summary/reference only; report cards excluded from persisted history. Fresh authorized run metadata also updates their status, summary and expiry. Pending card references outside the current list page/filter use the same scoped run-detail API. Card arrival and completion events request a refresh, covering events received before the card.
 5. Report rows → current authorized panel preview only → discarded on scope change.
 6. Uncertain previous chat turn → explicit Start new chat → preserve draft without resubmitting.
 
