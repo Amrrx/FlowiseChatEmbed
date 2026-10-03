@@ -119,12 +119,7 @@ pre {
 .loading-label {
   font-size: 0.875rem;
   color: var(--chatbot-host-bubble-color);
-  background: linear-gradient(
-    90deg,
-    var(--chatbot-host-bubble-color) 30%,
-    var(--chatbot-button-bg-color) 50%,
-    var(--chatbot-host-bubble-color) 70%
-  );
+  background: linear-gradient(90deg, var(--chatbot-host-bubble-color) 30%, var(--chatbot-button-bg-color) 50%, var(--chatbot-host-bubble-color) 70%);
   background-size: 200% auto;
   background-clip: text;
   -webkit-background-clip: text;
@@ -495,18 +490,20 @@ textarea {
     max-width: unset !important;
     max-height: unset !important;
     height: 100% !important;
-    overflow: auto; 
+    overflow: auto;
     overflow-x: hidden; /* Prevent horizontal scrolling */
   }
 
-    div[part='button'], div[class='flex flex-row items-center w-full h-[50px] absolute top-0 left-0 z-10'], .chatbot-container, .rounded-lg {
+  div[part='button'],
+  div[class='flex flex-row items-center w-full h-[50px] absolute top-0 left-0 z-10'],
+  .chatbot-container,
+  .rounded-lg {
     border-radius: 0px !important;
   }
 
-button {
-  cursor: default !important;
-}
-
+  button {
+    cursor: default !important;
+  }
 }
 .tooltip {
   position: fixed;
@@ -632,4 +629,305 @@ button {
 }
 .announcement-body > *:last-child {
   margin-bottom: 0;
+}
+
+.report-open-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid #c7d7fb;
+  background: #fff;
+  color: var(--report-accent, #3b81f6);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.report-open-button:hover {
+  background: #eef4ff;
+}
+.report-open-button:focus-visible {
+  outline: 2px solid var(--report-accent, #3b81f6);
+  outline-offset: 2px;
+}
+.report-open-button svg {
+  width: 14px;
+  height: 14px;
+}
+.reports-panel {
+  box-sizing: border-box;
+  position: fixed;
+  z-index: 2147482999;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px #0002;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font:
+    13px/1.45 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  text-align: start;
+}
+.reports-panel button {
+  cursor: pointer;
+}
+.reports-panel button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.reports-panel button:focus-visible {
+  outline: 2px solid var(--report-accent);
+  outline-offset: -2px;
+}
+.reports-panel header {
+  height: 56px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.reports-panel h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.report-close {
+  margin-inline-start: auto;
+  font-size: 24px;
+}
+.report-scope {
+  font-size: 11px;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 20px;
+  padding: 3px 8px;
+}
+.reports-panel nav {
+  display: flex;
+  cursor: grab;
+  touch-action: pan-x;
+  user-select: none;
+  gap: 6px;
+  padding: 10px 14px;
+  overflow: auto;
+  flex: none;
+  border-bottom: 1px solid #e5e7eb;
+}
+.reports-panel nav:active {
+  cursor: grabbing;
+}
+.reports-panel nav button {
+  flex-shrink: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 4px 10px;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.reports-panel nav button[aria-pressed='true'] {
+  border-color: currentColor;
+  font-weight: 600;
+}
+.report-list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 200px;
+  overflow: auto;
+  flex: none;
+  border-bottom: 1px solid #e5e7eb;
+}
+.report-list li > button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 8px;
+  padding: 9px 10px;
+  text-align: start;
+  border-radius: 6px;
+}
+.report-list li > button[aria-current='true'] {
+  background: #eef4ff;
+}
+.report-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.report-list small {
+  grid-column: 1/-1;
+  color: #6b7280;
+}
+.report-pill {
+  display: inline-flex;
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: #f3f4f6;
+  color: #4b5563;
+}
+.report-pill.running,
+.report-pill.queued {
+  background: #eff6ff;
+  color: #2563eb;
+}
+.report-pill.ready {
+  background: #ecfdf5;
+  color: #15803d;
+}
+.report-pill.failed {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.report-detail {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.report-detail > * {
+  flex-shrink: 0;
+}
+.report-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.report-title h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.report-muted {
+  color: #6b7280;
+  font-size: 12px;
+}
+.report-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.report-steps li {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  padding: 6px 0;
+}
+.report-steps small {
+  color: #6b7280;
+}
+.report-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.report-facts > div {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px;
+}
+.report-facts small,
+.report-facts b {
+  display: block;
+}
+.report-facts small {
+  color: #6b7280;
+  font-size: 11px;
+}
+.report-facts p {
+  grid-column: 1/-1;
+  font-size: 12px;
+}
+.report-notice {
+  background: #f3f4f6;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.report-outcomes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+.report-outcomes span {
+  background: #f6f7fb;
+  padding: 3px 7px;
+}
+.report-outcomes small {
+  width: 100%;
+  color: #6b7280;
+}
+.report-table {
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  max-height: 250px;
+}
+.report-table table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-size: 12px;
+}
+.report-table th {
+  position: sticky;
+  top: 0;
+  background: #f3f4f6;
+  text-align: start;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+.report-table td {
+  padding: 5px 9px;
+  border-top: 1px solid #f1f2f5;
+}
+.report-table td button {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+  display: block;
+}
+.report-cell pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.report-cell > button {
+  text-decoration: underline;
+  font-size: 12px;
+}
+.report-actions,
+.report-paging {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.report-actions button,
+.report-paging button {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.report-actions .primary {
+  background: var(--report-accent);
+  color: #fff;
+}
+.report-paging {
+  justify-content: space-between;
+  padding: 6px;
+  font-size: 11px;
 }

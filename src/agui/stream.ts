@@ -30,6 +30,8 @@ export function connectStream(options: StreamOptions): void {
   }
 
   abortController = new AbortController();
+  const connection = abortController;
+  let reportsEnabled = false;
 
   const headers: Record<string, string> = {
     'X-Agent-ID': options.agentId,
@@ -49,6 +51,12 @@ export function connectStream(options: StreamOptions): void {
         options.onConnect?.();
         return;
       }
+      if (response.status === 401 || response.status === 403) {
+        connection.abort();
+        options.onError?.(`HTTP ${response.status}`);
+        options.onDisconnect?.();
+        throw new Error(`HTTP ${response.status}`);
+      }
       const errMessage = (await response.text()) ?? 'Stream connection failed';
       options.onError?.(errMessage);
       throw new Error(errMessage);
@@ -57,6 +65,7 @@ export function connectStream(options: StreamOptions): void {
     onmessage(ev) {
       try {
         const event: StreamEvent = JSON.parse(ev.data);
+        if (event.type === 'ack') reportsEnabled = event.pipeline_reports === true;
         options.onEvent(event);
       } catch {
         // Ignore unparseable events (comments, keepalive)
@@ -65,12 +74,14 @@ export function connectStream(options: StreamOptions): void {
 
     onerror() {
       options.onDisconnect?.();
+      if (connection.signal.aborted) throw new Error('Stream closed');
     },
 
     onclose() {
       options.onDisconnect?.();
+      if (reportsEnabled && !connection.signal.aborted) throw new Error('Report stream disconnected');
     },
-  });
+  }).catch(() => options.onDisconnect?.());
 }
 
 export function disconnectStream(): void {

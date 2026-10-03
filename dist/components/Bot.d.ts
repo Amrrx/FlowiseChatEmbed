@@ -65,6 +65,10 @@ export type AgentFlowExecutedData = {
 };
 export type MessageType = {
     messageId?: string;
+    reportMessageId?: string;
+    reportRunId?: string;
+    reportScope?: string;
+    restartConversation?: boolean;
     message: string;
     type: messageType;
     sourceDocuments?: any;
