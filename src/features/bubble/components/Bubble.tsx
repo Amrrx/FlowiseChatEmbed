@@ -1,4 +1,4 @@
-import { createSignal, Show, splitProps, onCleanup, onMount, createEffect, on } from 'solid-js';
+import { createSignal, Show, splitProps, onCleanup, onMount, createEffect, on, createMemo } from 'solid-js';
 import styles from '../../../assets/index.css';
 import { BubbleButton } from './BubbleButton';
 import { BubbleParams } from '../types';
@@ -8,6 +8,7 @@ import { getBubbleButtonSize } from '@/utils';
 import { useAgUiStream } from '@/agui/useAgUiStream';
 import { createAnnouncements } from '@/components/AnnouncementsButton';
 import type { SwitchableLayout } from '@/components/HeaderMenu';
+import { colorSchemeStyle, resolveTheme } from '../colorScheme';
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
@@ -25,6 +26,9 @@ export type BubbleProps = BotProps & BubbleParams;
 
 export const Bubble = (props: BubbleProps, { element: hostElement }: { element: HTMLElement }) => {
   const [bubbleProps] = splitProps(props, ['theme']);
+  // The theme as rendered: light as given, or with the dark palette applied
+  // (see colorScheme.ts). Every theme read below goes through this.
+  const theme = createMemo(() => resolveTheme(bubbleProps.theme));
 
   const [isBotOpened, setIsBotOpened] = createSignal(false);
   const [isBotStarted, setIsBotStarted] = createSignal(false);
@@ -34,8 +38,8 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   // chat window's `scale3d` transform, so a fixed overlay covers the full viewport.
   const [announceHost, setAnnounceHost] = createSignal<HTMLDivElement>();
   const [buttonPosition, setButtonPosition] = createSignal({
-    bottom: bubbleProps.theme?.button?.bottom ?? 20,
-    right: bubbleProps.theme?.button?.right ?? 20,
+    bottom: theme()?.button?.bottom ?? 20,
+    right: theme()?.button?.right ?? 20,
   });
 
   const {
@@ -102,7 +106,9 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
     onCleanup(() => window.removeEventListener('resize', onResize));
   });
 
-  const configuredLayout = () => bubbleProps.theme?.chatWindow?.layout ?? 'floating';
+  // A memo, so re-running init() with the same layout (e.g. only the colorScheme
+  // changed) does not count as a change and keep the user's own pick.
+  const configuredLayout = createMemo(() => theme()?.chatWindow?.layout ?? 'floating');
   // Set by the title bar's layout switcher. Cleared whenever the host re-inits
   // with a different layout, so the host's own choice always wins.
   const [layoutOverride, setLayoutOverride] = createSignal<SwitchableLayout | null>(null);
@@ -116,8 +122,8 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   const isInlineMode = () => layout() === 'inline';
   // Clamped so a misconfigured width can't render a degenerate panel or hand the
   // host a margin that doesn't match what was drawn.
-  const sidebarMin = () => bubbleProps.theme?.chatWindow?.sidebarMinWidth ?? minSidebarWidth;
-  const sidebarMax = () => bubbleProps.theme?.chatWindow?.sidebarMaxWidth ?? maxSidebarWidth;
+  const sidebarMin = () => theme()?.chatWindow?.sidebarMinWidth ?? minSidebarWidth;
+  const sidebarMax = () => theme()?.chatWindow?.sidebarMaxWidth ?? maxSidebarWidth;
   const sidebarWidthKey = () => (props.chatflowid ? `${props.chatflowid}_SIDEBAR_WIDTH` : null);
   const readSidebarWidth = () => {
     const key = sidebarWidthKey();
@@ -131,19 +137,16 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   };
   // Only a user drag sets this; until then the theme width (or the default) applies.
   const [draggedSidebarWidth, setDraggedSidebarWidth] = createSignal<number | null>(
-    bubbleProps.theme?.chatWindow?.sidebarResizable ? readSidebarWidth() : null,
+    theme()?.chatWindow?.sidebarResizable ? readSidebarWidth() : null,
   );
   const [isSidebarResizing, setIsSidebarResizing] = createSignal(false);
   const sidebarWidth = () =>
-    Math.max(
-      sidebarMin(),
-      Math.min(draggedSidebarWidth() ?? bubbleProps.theme?.chatWindow?.width ?? defaultSidebarWidth, sidebarMax(), viewportWidth()),
-    );
+    Math.max(sidebarMin(), Math.min(draggedSidebarWidth() ?? theme()?.chatWindow?.width ?? defaultSidebarWidth, sidebarMax(), viewportWidth()));
   const hideLauncher = () =>
     isInlineMode() ||
-    (bubbleProps.theme?.button?.hideLauncher ?? false) ||
-    (isSidebarMode() && (bubbleProps.theme?.button?.hideLauncherWhenDocked ?? false)) ||
-    (isBotOpened() && (bubbleProps.theme?.button?.hideLauncherWhenOpen ?? false));
+    (theme()?.button?.hideLauncher ?? false) ||
+    (isSidebarMode() && (theme()?.button?.hideLauncherWhenDocked ?? false)) ||
+    (isBotOpened() && (theme()?.button?.hideLauncherWhenOpen ?? false));
 
   // Only floating and sidebar can be switched between; inline is placed by the host.
   const switchableLayout = (): SwitchableLayout | undefined => (isInlineMode() ? undefined : isSidebarMode() ? 'sidebar' : 'floating');
@@ -174,7 +177,7 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   };
   const [resizeHandleHover, setResizeHandleHover] = createSignal(false);
   const resizeHandleStyle = () => {
-    const handle = bubbleProps.theme?.chatWindow?.sidebarResizeHandle;
+    const handle = theme()?.chatWindow?.sidebarResizeHandle;
     const base = { position: 'absolute' as const, top: '0', bottom: '0', cursor: 'col-resize', 'z-index': 60, 'touch-action': 'none' };
     if (!handle) return { ...base, left: '-3px', width: '6px' };
     const width = handle.width ?? 5;
@@ -184,7 +187,6 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
       left: `-${width}px`,
       width: `${width}px`,
       'background-color': resizeHandleHover() || isSidebarResizing() ? handle.hoverColor ?? color : color,
-      ...(handle.grip === false ? {} : { 'background-image': gripImage, 'background-position': 'center', 'background-repeat': 'no-repeat' }),
     };
   };
 
@@ -200,11 +202,11 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
     document.removeEventListener('pointermove', onSidebarResizeMove);
     document.removeEventListener('pointerup', onSidebarResizeUp);
   });
-  const themeColor = () => bubbleProps.theme?.themeColor;
+  const themeColor = () => theme()?.themeColor;
 
   const backgroundStyle = () => ({
-    'background-color': bubbleProps.theme?.chatWindow?.backgroundColor || '#ffffff',
-    'background-image': bubbleProps.theme?.chatWindow?.backgroundImage ? `url(${bubbleProps.theme?.chatWindow?.backgroundImage})` : 'none',
+    'background-color': theme()?.chatWindow?.backgroundColor || '#ffffff',
+    'background-image': theme()?.chatWindow?.backgroundImage ? `url(${theme()?.chatWindow?.backgroundImage})` : 'none',
     'background-size': 'cover',
     'background-position': 'center',
     'background-repeat': 'no-repeat',
@@ -256,19 +258,19 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   // silently disable auto-open. Calls openBot() directly — going through
   // toggleBot() would mark the open as a user interaction and suppress itself.
   createEffect(() => {
-    if (!bubbleProps.theme?.button?.autoWindowOpen?.autoOpen) return;
+    if (!theme()?.button?.autoWindowOpen?.autoOpen) return;
     const onMobile = window.innerWidth <= 640;
-    if (onMobile && !bubbleProps.theme?.button?.autoWindowOpen?.autoOpenOnMobile) return;
+    if (onMobile && !theme()?.button?.autoWindowOpen?.autoOpenOnMobile) return;
 
-    const delay = (bubbleProps.theme?.button?.autoWindowOpen?.openDelay ?? 2) * 1000;
+    const delay = (theme()?.button?.autoWindowOpen?.openDelay ?? 2) * 1000;
     const timer = setTimeout(() => {
       if (!isBotOpened() && !userInteracted()) openBot();
     }, delay);
     onCleanup(() => clearTimeout(timer));
   });
 
-  const buttonSize = getBubbleButtonSize(props.theme?.button?.size); // Default to 48px if size is not provided
-  const buttonBottom = props.theme?.button?.bottom ?? 20;
+  const buttonSize = getBubbleButtonSize(theme()?.button?.size); // Default to 48px if size is not provided
+  const buttonBottom = theme()?.button?.bottom ?? 20;
   const chatWindowBottom = buttonBottom + buttonSize + 10; // Adjust the offset here for slight shift
   const windowGap = 10;
   const minChatSize = 300;
@@ -276,12 +278,11 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
 
   // A pinned floating window sits at fixed viewport offsets, unfolding from its own
   // bottom-right corner rather than from the launcher.
-  const floatingPinned = () =>
-    bubbleProps.theme?.chatWindow?.floatingRight !== undefined || bubbleProps.theme?.chatWindow?.floatingBottom !== undefined;
+  const floatingPinned = () => theme()?.chatWindow?.floatingRight !== undefined || theme()?.chatWindow?.floatingBottom !== undefined;
   const pinnedAnchor = () => ({
-    right: `${bubbleProps.theme?.chatWindow?.floatingRight ?? 20}px`,
+    right: `${theme()?.chatWindow?.floatingRight ?? 20}px`,
     left: 'auto',
-    bottom: `${bubbleProps.theme?.chatWindow?.floatingBottom ?? 20}px`,
+    bottom: `${theme()?.chatWindow?.floatingBottom ?? 20}px`,
     top: 'auto',
     'transform-origin': 'bottom right',
   });
@@ -389,8 +390,8 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   // A resized size overrides theme/default dimensions and the max-height cap, desktop only.
   const sizeStyle = () => {
     const size = window.innerWidth > 640 ? chatSize() : null;
-    const themeHeight = bubbleProps.theme?.chatWindow?.height;
-    const themeWidth = bubbleProps.theme?.chatWindow?.width;
+    const themeHeight = theme()?.chatWindow?.height;
+    const themeWidth = theme()?.chatWindow?.width;
     return {
       width: size ? `${size.width}px` : themeWidth ? `${themeWidth.toString()}px` : undefined,
       height: size ? `${size.height}px` : themeHeight ? `${themeHeight.toString()}px` : 'calc(100% - 150px)',
@@ -454,8 +455,8 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
     if (isSidebarMode()) {
       return {
         ...backgroundStyle(),
-        top: `${bubbleProps.theme?.chatWindow?.sidebarTop ?? 0}px`,
-        bottom: `${bubbleProps.theme?.chatWindow?.sidebarBottom ?? 0}px`,
+        top: `${theme()?.chatWindow?.sidebarTop ?? 0}px`,
+        bottom: `${theme()?.chatWindow?.sidebarBottom ?? 0}px`,
         right: '0',
         left: 'auto',
         height: 'auto',
@@ -463,16 +464,14 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
         width: `${sidebarWidth()}px`,
         transition: isSidebarResizing() ? 'none' : 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
         transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
-        'box-shadow': bubbleProps.theme?.chatWindow?.sidebarBoxShadow ?? '-4px 0 24px rgba(0, 0, 0, 0.12)',
-        ...(bubbleProps.theme?.chatWindow?.sidebarBorder
-          ? { border: bubbleProps.theme.chatWindow.sidebarBorder }
+        'box-shadow': theme()?.chatWindow?.sidebarBoxShadow ?? '-4px 0 24px rgba(0, 0, 0, 0.12)',
+        ...(theme()?.chatWindow?.sidebarBorder
+          ? { border: theme()?.chatWindow?.sidebarBorder }
           : {
-              'border-left': `${bubbleProps.theme?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${
-                bubbleProps.theme?.chatWindow?.sidebarBorderColor ?? '#d1d5db'
-              }`,
+              'border-left': `${theme()?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${theme()?.chatWindow?.sidebarBorderColor ?? '#d1d5db'}`,
             }),
         'border-radius': '0',
-        'z-index': bubbleProps.theme?.chatWindow?.sidebarZIndex ?? 42424242,
+        'z-index': theme()?.chatWindow?.sidebarZIndex ?? 42424242,
       };
     }
 
@@ -481,10 +480,10 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
       ...backgroundStyle(),
       transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
       transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
-      'box-shadow': bubbleProps.theme?.chatWindow?.floatingBoxShadow ?? '0 4px 24px rgba(0, 0, 0, 0.12)',
+      'box-shadow': theme()?.chatWindow?.floatingBoxShadow ?? '0 4px 24px rgba(0, 0, 0, 0.12)',
       'z-index': 42424242,
-      'border-radius': `${bubbleProps.theme?.chatWindow?.floatingBorderRadius ?? 20}px`,
-      ...(bubbleProps.theme?.chatWindow?.floatingBorder ? { border: bubbleProps.theme.chatWindow.floatingBorder } : {}),
+      'border-radius': `${theme()?.chatWindow?.floatingBorderRadius ?? 20}px`,
+      ...(theme()?.chatWindow?.floatingBorder ? { border: theme()?.chatWindow?.floatingBorder } : {}),
       ...(floatingPinned() ? pinnedAnchor() : windowAnchor()),
     };
   };
@@ -508,32 +507,33 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
     };
   });
 
-  const showTooltip = bubbleProps.theme?.tooltip?.showTooltip ?? false;
+  const showTooltip = theme()?.tooltip?.showTooltip ?? false;
 
   return (
     <>
-      <Show when={props.theme?.customCSS}>
-        <style>{props.theme?.customCSS}</style>
+      <Show when={theme()?.customCSS}>
+        <style>{theme()?.customCSS}</style>
       </Show>
       <style>{styles}</style>
+      <style>{colorSchemeStyle(theme()?.colorScheme)}</style>
       <div ref={setAnnounceHost} />
       <Show when={!hideLauncher()}>
         <Tooltip
           showTooltip={showTooltip && !isBotOpened()}
           position={buttonPosition()}
           buttonSize={buttonSize}
-          tooltipMessage={bubbleProps.theme?.tooltip?.tooltipMessage}
-          tooltipBackgroundColor={bubbleProps.theme?.tooltip?.tooltipBackgroundColor}
-          tooltipTextColor={bubbleProps.theme?.tooltip?.tooltipTextColor}
-          tooltipFontSize={bubbleProps.theme?.tooltip?.tooltipFontSize} // Set the tooltip font size
+          tooltipMessage={theme()?.tooltip?.tooltipMessage}
+          tooltipBackgroundColor={theme()?.tooltip?.tooltipBackgroundColor}
+          tooltipTextColor={theme()?.tooltip?.tooltipTextColor}
+          tooltipFontSize={theme()?.tooltip?.tooltipFontSize} // Set the tooltip font size
         />
         <BubbleButton
-          {...bubbleProps.theme?.button}
+          {...theme()?.button}
           toggleBot={toggleBot}
           isBotOpened={isBotOpened()}
           setButtonPosition={setButtonPosition}
-          backgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor()}
-          dragAndDrop={bubbleProps.theme?.button?.dragAndDrop ?? false}
+          backgroundColor={theme()?.button?.backgroundColor ?? themeColor()}
+          dragAndDrop={theme()?.button?.dragAndDrop ?? false}
           chatflowid={props.chatflowid}
           streamConnected={streamConnected()}
           unreadCount={unreadCount()}
@@ -541,14 +541,30 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
         />
       </Show>
       <div part="bot" ref={windowRef} style={panelStyle()} class={panelClass()}>
-        <Show when={isBotOpened() && isSidebarMode() && bubbleProps.theme?.chatWindow?.sidebarResizable}>
+        <Show when={isBotOpened() && isSidebarMode() && theme()?.chatWindow?.sidebarResizable}>
           <div
             style={resizeHandleStyle()}
             onPointerDown={onSidebarResizeDown}
             onPointerEnter={() => setResizeHandleHover(true)}
             onPointerLeave={() => setResizeHandleHover(false)}
             title="Drag to resize"
-          />
+          >
+            <Show when={theme()?.chatWindow?.sidebarResizeHandle && theme()?.chatWindow?.sidebarResizeHandle?.grip !== false}>
+              {/* Its own element so dark mode can invert the dark-dotted grip
+                  (--fw-grip-filter) without inverting the strip behind it. */}
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: '0',
+                  'background-image': gripImage,
+                  'background-position': 'center',
+                  'background-repeat': 'no-repeat',
+                  filter: 'var(--fw-grip-filter, none)',
+                  'pointer-events': 'none',
+                }}
+              />
+            </Show>
+          </div>
         </Show>
         <Show when={isBotOpened() && !isSidebarMode() && !isInlineMode()}>
           <div
@@ -564,7 +580,7 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
         </Show>
         <Show when={isBotStarted()}>
           <div class="relative h-full">
-            <Show when={isBotOpened() && !isInlineMode() && !bubbleProps.theme?.chatWindow?.header}>
+            <Show when={isBotOpened() && !isInlineMode() && !theme()?.chatWindow?.header}>
               {/* Cross button For only mobile screen use this <Show when={isBotOpened() && window.innerWidth <= 640}>  */}
               <button
                 onClick={closeBot}
@@ -573,50 +589,50 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
               >
                 <svg viewBox="0 0 24 24" width="24" height="24">
                   <path
-                    fill={bubbleProps.theme?.button?.iconColor ?? defaultIconColor}
+                    fill={theme()?.button?.iconColor ?? defaultIconColor}
                     d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z"
                   />
                 </svg>
               </button>
             </Show>
             <Bot
-              backgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
-              formBackgroundColor={bubbleProps.theme?.form?.backgroundColor}
-              formTextColor={bubbleProps.theme?.form?.textColor}
-              badgeBackgroundColor={bubbleProps.theme?.chatWindow?.backgroundColor}
-              bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor() ?? defaultButtonColor}
-              bubbleTextColor={bubbleProps.theme?.button?.iconColor ?? defaultIconColor}
+              backgroundColor={theme()?.chatWindow?.backgroundColor}
+              formBackgroundColor={theme()?.form?.backgroundColor}
+              formTextColor={theme()?.form?.textColor}
+              badgeBackgroundColor={theme()?.chatWindow?.backgroundColor}
+              bubbleBackgroundColor={theme()?.button?.backgroundColor ?? themeColor() ?? defaultButtonColor}
+              bubbleTextColor={theme()?.button?.iconColor ?? defaultIconColor}
               squareCorners={isSidebarMode() || isInlineMode()}
-              header={bubbleProps.theme?.chatWindow?.header}
-              cornerRadius={bubbleProps.theme?.chatWindow?.floatingBorderRadius}
-              quickActionsTheme={bubbleProps.theme?.chatWindow?.quickActions}
+              header={theme()?.chatWindow?.header}
+              cornerRadius={theme()?.chatWindow?.floatingBorderRadius}
+              quickActionsTheme={theme()?.chatWindow?.quickActions}
               currentLayout={switchableLayout()}
-              onSwitchLayout={bubbleProps.theme?.chatWindow?.header?.layoutSwitcher && !isInlineMode() ? switchLayout : undefined}
-              showCloseInTitle={!!bubbleProps.theme?.chatWindow?.header && !isInlineMode()}
-              titleHeight={bubbleProps.theme?.chatWindow?.titleHeight}
-              showTitle={bubbleProps.theme?.chatWindow?.showTitle}
-              showAgentMessages={bubbleProps.theme?.chatWindow?.showAgentMessages}
-              title={bubbleProps.theme?.chatWindow?.title}
-              title_rtl={bubbleProps.theme?.chatWindow?.title_rtl}
-              titleAvatarSrc={bubbleProps.theme?.chatWindow?.titleAvatarSrc}
-              titleTextColor={bubbleProps.theme?.chatWindow?.titleTextColor}
-              titleBackgroundColor={bubbleProps.theme?.chatWindow?.titleBackgroundColor}
-              showWelcomeMessage={bubbleProps.theme?.chatWindow?.showWelcomeMessage}
-              welcomeMessage={bubbleProps.theme?.chatWindow?.welcomeMessage}
-              errorMessage={bubbleProps.theme?.chatWindow?.errorMessage}
-              poweredByTextColor={bubbleProps.theme?.chatWindow?.poweredByTextColor}
+              onSwitchLayout={theme()?.chatWindow?.header?.layoutSwitcher && !isInlineMode() ? switchLayout : undefined}
+              showCloseInTitle={!!theme()?.chatWindow?.header && !isInlineMode()}
+              titleHeight={theme()?.chatWindow?.titleHeight}
+              showTitle={theme()?.chatWindow?.showTitle}
+              showAgentMessages={theme()?.chatWindow?.showAgentMessages}
+              title={theme()?.chatWindow?.title}
+              title_rtl={theme()?.chatWindow?.title_rtl}
+              titleAvatarSrc={theme()?.chatWindow?.titleAvatarSrc}
+              titleTextColor={theme()?.chatWindow?.titleTextColor}
+              titleBackgroundColor={theme()?.chatWindow?.titleBackgroundColor}
+              showWelcomeMessage={theme()?.chatWindow?.showWelcomeMessage}
+              welcomeMessage={theme()?.chatWindow?.welcomeMessage}
+              errorMessage={theme()?.chatWindow?.errorMessage}
+              poweredByTextColor={theme()?.chatWindow?.poweredByTextColor}
               textInput={{
-                ...bubbleProps.theme?.chatWindow?.textInput,
-                sendButtonColor: bubbleProps.theme?.chatWindow?.textInput?.sendButtonColor ?? themeColor(),
+                ...theme()?.chatWindow?.textInput,
+                sendButtonColor: theme()?.chatWindow?.textInput?.sendButtonColor ?? themeColor(),
               }}
-              botMessage={bubbleProps.theme?.chatWindow?.botMessage}
-              userMessage={bubbleProps.theme?.chatWindow?.userMessage}
-              feedback={bubbleProps.theme?.chatWindow?.feedback}
-              fontSize={bubbleProps.theme?.chatWindow?.fontSize}
-              footer={bubbleProps.theme?.chatWindow?.footer}
-              sourceDocsTitle={bubbleProps.theme?.chatWindow?.sourceDocsTitle}
-              starterPrompts={bubbleProps.theme?.chatWindow?.starterPrompts}
-              starterPromptFontSize={bubbleProps.theme?.chatWindow?.starterPromptFontSize}
+              botMessage={theme()?.chatWindow?.botMessage}
+              userMessage={theme()?.chatWindow?.userMessage}
+              feedback={theme()?.chatWindow?.feedback}
+              fontSize={theme()?.chatWindow?.fontSize}
+              footer={theme()?.chatWindow?.footer}
+              sourceDocsTitle={theme()?.chatWindow?.sourceDocsTitle}
+              starterPrompts={theme()?.chatWindow?.starterPrompts}
+              starterPromptFontSize={theme()?.chatWindow?.starterPromptFontSize}
               chatflowid={props.chatflowid}
               chatflowConfig={props.chatflowConfig}
               apiHost={props.apiHost}
@@ -625,11 +641,11 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
               agentId={props.agentId}
               onRequest={props.onRequest}
               observersConfig={props.observersConfig}
-              clearChatOnReload={bubbleProps.theme?.chatWindow?.clearChatOnReload}
-              disclaimer={bubbleProps.theme?.disclaimer}
-              dateTimeToggle={bubbleProps.theme?.chatWindow?.dateTimeToggle}
-              renderHTML={props.theme?.chatWindow?.renderHTML}
-              autoMessage={bubbleProps.theme?.chatWindow?.autoMessage}
+              clearChatOnReload={theme()?.chatWindow?.clearChatOnReload}
+              disclaimer={theme()?.disclaimer}
+              dateTimeToggle={theme()?.chatWindow?.dateTimeToggle}
+              renderHTML={theme()?.chatWindow?.renderHTML}
+              autoMessage={theme()?.chatWindow?.autoMessage}
               closeBot={closeBot}
               streamConnected={streamConnected()}
               notifications={notifications}

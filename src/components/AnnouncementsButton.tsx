@@ -335,7 +335,7 @@ export const AnnouncementsButton = (props: Props) => {
                 height: '36px',
                 'flex-shrink': '0',
                 padding: '0',
-                background: '#FFFFFF',
+                background: 'var(--fw-surface-raised, #FFFFFF)',
                 border: `1px solid ${props.outlinedBorderColor}`,
                 'border-radius': '8px',
                 'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)',

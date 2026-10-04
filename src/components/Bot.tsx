@@ -3810,7 +3810,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                     border: `1px solid ${props.header?.buttonBorderColor ?? '#D5D7DA'}`,
                     'border-radius': '8px',
                     'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)',
-                    background: '#FFFFFF',
+                    background: 'var(--fw-surface-raised, #FFFFFF)',
                     color: props.header?.iconColor || '#535862',
                     cursor: messages().length === 1 ? 'not-allowed' : 'pointer',
                     opacity: messages().length === 1 ? '0.5' : '1',

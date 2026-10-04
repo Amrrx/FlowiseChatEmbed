@@ -11,6 +11,12 @@ export type BubbleTheme = {
   form?: FormTheme;
   // Single accent color used as a fallback wherever a more specific color isn't set.
   themeColor?: string;
+  // 'dark' recolors the panel's surfaces, text, borders and controls with a built-in
+  // dark palette (brand accents are kept). The host may switch it at any time by
+  // re-running init() with the new value. Defaults to 'light'.
+  colorScheme?: 'light' | 'dark';
+  // Applied on top of the built-in dark palette while colorScheme is 'dark'.
+  dark?: Omit<BubbleTheme, 'dark' | 'colorScheme'>;
 };
 
 export type FormTheme = {

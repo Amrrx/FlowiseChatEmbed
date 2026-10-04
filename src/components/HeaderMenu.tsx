@@ -54,7 +54,7 @@ const itemStyle = {
   border: 'none',
   'border-radius': '6px',
   background: 'transparent',
-  color: '#414651',
+  color: 'var(--fw-text, #414651)',
   'font-size': '16px',
   'line-height': '24px',
   'text-align': 'start' as const,
@@ -105,7 +105,7 @@ export const HeaderMenu = (props: Props) => {
           border: `1px solid ${props.header.buttonBorderColor ?? '#D5D7DA'}`,
           'border-radius': '8px',
           'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)',
-          background: open() ? '#FAFAFA' : '#FFFFFF',
+          background: open() ? 'var(--fw-surface-hover, #FAFAFA)' : 'var(--fw-surface-raised, #FFFFFF)',
           color: props.iconColor,
           cursor: 'pointer',
         }}
@@ -125,15 +125,15 @@ export const HeaderMenu = (props: Props) => {
             'inset-inline-end': '0',
             'min-width': '208px',
             padding: '4px',
-            background: '#ffffff',
-            border: '1px solid #E9EAEB',
+            background: 'var(--fw-surface-raised, #ffffff)',
+            border: '1px solid var(--fw-border, #E9EAEB)',
             'border-radius': '8px',
             'box-shadow': '0 12px 16px -4px rgba(10, 13, 18, 0.08), 0 4px 6px -2px rgba(10, 13, 18, 0.03)',
             'z-index': 60,
           }}
         >
           <Show when={props.onSwitchLayout}>
-            <div style={{ padding: '10px 14px', color: '#252B37', 'font-size': '16px', 'line-height': '24px', 'font-weight': '600' }}>
+            <div style={{ padding: '10px 14px', color: 'var(--fw-text, #252B37)', 'font-size': '16px', 'line-height': '24px', 'font-weight': '600' }}>
               {labels().switchTo ?? 'Switch to'}
             </div>
             <For each={layouts()}>

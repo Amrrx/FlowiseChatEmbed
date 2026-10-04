@@ -9,6 +9,8 @@ export type BubbleTheme = {
     customCSS?: string;
     form?: FormTheme;
     themeColor?: string;
+    colorScheme?: 'light' | 'dark';
+    dark?: Omit<BubbleTheme, 'dark' | 'colorScheme'>;
 };
 export type FormTheme = {
     backgroundColor?: string;

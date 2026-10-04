@@ -63,7 +63,11 @@ export const Badge = (props: Props) => {
           </a>
           <span
             class="mx-1.5 inline-flex items-center rounded-full px-1.5 py-[1px] text-[10px] font-medium leading-none align-middle tracking-wide"
-            style={{ color: '#9ca3af', 'background-color': '#f3f4f6', border: '1px solid #e5e7eb' }}
+            style={{
+              color: 'var(--fw-text-muted, #9ca3af)',
+              'background-color': 'var(--fw-surface-raised, #f3f4f6)',
+              border: '1px solid var(--fw-border, #e5e7eb)',
+            }}
           >
             v{appVersion}
           </span>
