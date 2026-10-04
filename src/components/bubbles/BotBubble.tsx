@@ -23,6 +23,10 @@ type Props = {
   avatarSrc?: string;
   backgroundColor?: string;
   textColor?: string;
+  borderRadius?: number;
+  padding?: string;
+  boxShadow?: string;
+  bubbleFontSize?: number;
   chatFeedbackStatus?: boolean;
   fontSize?: number;
   feedbackColor?: string;
@@ -484,13 +488,13 @@ export const BotBubble = (props: Props) => {
                 style={{
                   'background-color': props.backgroundColor ?? defaultBackgroundColor,
                   color: props.textColor ?? defaultTextColor,
-                  'border-radius': '18px',
-                  'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
+                  'border-radius': `${props.borderRadius ?? 18}px`,
+                  'font-size': `${props.bubbleFontSize ?? props.fontSize ?? defaultFontSize}px`,
                   'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
                   'line-height': '1.5',
-                  padding: '12px 16px',
+                  padding: props.padding ?? '12px 16px',
                   display: 'block',
-                  'box-shadow': '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
+                  'box-shadow': props.boxShadow ?? '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
                 }}
               />
             </div>

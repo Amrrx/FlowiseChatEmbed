@@ -13,6 +13,10 @@ type Props = {
   avatarSrc?: string;
   backgroundColor?: string;
   textColor?: string;
+  borderRadius?: number;
+  padding?: string;
+  boxShadow?: string;
+  bubbleFontSize?: number;
   fontSize?: number;
   renderHTML?: boolean;
 };
@@ -92,10 +96,10 @@ export const GuestBubble = (props: Props) => {
         style={{
           'background-color': props.backgroundColor ?? defaultBackgroundColor,
           color: props.textColor ?? defaultTextColor,
-          'border-radius': '18px',
+          'border-radius': `${props.borderRadius ?? 18}px`,
           'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-          padding: '12px 16px',
-          'box-shadow': '0 2px 8px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05)',
+          padding: props.padding ?? '12px 16px',
+          'box-shadow': props.boxShadow ?? '0 2px 8px rgba(59, 130, 246, 0.15), 0 1px 2px rgba(0, 0, 0, 0.05)',
         }}
       >
         {props.message.fileUploads && props.message.fileUploads.length > 0 && (
@@ -113,7 +117,7 @@ export const GuestBubble = (props: Props) => {
             dir="auto"
             class="me-2 whitespace-pre-wrap"
             style={{
-              'font-size': props.fontSize ? `${props.fontSize}px` : `${defaultFontSize}px`,
+              'font-size': `${props.bubbleFontSize ?? props.fontSize ?? defaultFontSize}px`,
               'line-height': '1.5',
             }}
           />

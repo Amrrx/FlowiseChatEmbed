@@ -7,8 +7,18 @@ import { renderAnnouncementBody, resolveMediaUrl } from './announcementMarkdown'
  * Tints are separate from the blue call-to-action: one says what this is, the other
  * says what to do. Mirrored in the dashboard panel's CSS — change both together. */
 const CATEGORY_LABEL: Record<string, string> = { feature: 'Feature', fix: 'Fix', notice: 'Notice' };
-const CATEGORY_TINT: Record<string, string> = { feature: '#e3efeb', fix: '#fdeee4', notice: '#eef1f5' };
-const CATEGORY_INK: Record<string, string> = { feature: '#0f6b5c', fix: '#a8542a', notice: '#4b5563' };
+// Each a CSS variable with the light value as fallback, so the dark palette
+// (colorScheme.ts) can recolor them.
+const CATEGORY_TINT: Record<string, string> = {
+  feature: 'var(--fw-cat-feature-tint, #e3efeb)',
+  fix: 'var(--fw-cat-fix-tint, #fdeee4)',
+  notice: 'var(--fw-cat-notice-tint, #eef1f5)',
+};
+const CATEGORY_INK: Record<string, string> = {
+  feature: 'var(--fw-cat-feature-ink, #0f6b5c)',
+  fix: 'var(--fw-cat-fix-ink, #a8542a)',
+  notice: 'var(--fw-cat-notice-ink, #4b5563)',
+};
 
 /** Day-level date for a card. An announcement is news, so the clock time adds nothing. */
 const formatAnnouncementDate = (iso: string): string => {
@@ -168,6 +178,8 @@ type Props = {
   /** Stream handler registrar — lets us light the LED live on an `announcement` frame. */
   registerStreamHandler: (handler: (event: any) => void) => () => void;
   color?: string;
+  /** Outlined 36px trigger matching the header's ⋮ button; value is the border color. */
+  outlinedBorderColor?: string;
   /**
    * Mount target for the full-viewport overlay. The trigger lives in the chat header,
    * which sits inside a `transform: scale3d` window that traps `position: fixed` to the
@@ -246,8 +258,17 @@ export const AnnouncementsButton = (props: Props) => {
   );
 
   const Card = (p: { a: Announcement }) => (
-    <div class="announcement-card" style={{ padding: '20px 24px 26px', 'border-top': '1px solid #f1f1f4' }}>
-      <div style={{ display: 'flex', 'align-items': 'center', gap: '10px', 'margin-bottom': '10px', 'font-size': '11.5px', color: '#6b7280' }}>
+    <div class="announcement-card" style={{ padding: '20px 24px 26px', 'border-top': '1px solid var(--fw-border-subtle, #f1f1f4)' }}>
+      <div
+        style={{
+          display: 'flex',
+          'align-items': 'center',
+          gap: '10px',
+          'margin-bottom': '10px',
+          'font-size': '11.5px',
+          color: 'var(--fw-text-faint, #6b7280)',
+        }}
+      >
         <span
           data-testid="announcement-category"
           style={{
@@ -270,7 +291,7 @@ export const AnnouncementsButton = (props: Props) => {
           'font-weight': '650',
           'line-height': '1.25',
           'letter-spacing': '-0.01em',
-          color: '#0b1220',
+          color: 'var(--fw-text-strong, #0b1220)',
           'margin-bottom': '14px',
         }}
       >
@@ -281,13 +302,19 @@ export const AnnouncementsButton = (props: Props) => {
           data-testid="announcement-media"
           src={resolveMediaUrl(p.a.media!.url, props.apiHost)}
           alt=""
-          style={{ width: '100%', 'border-radius': '10px', display: 'block', 'margin-bottom': '16px', border: '1px solid #eef0ef' }}
+          style={{
+            width: '100%',
+            'border-radius': '10px',
+            display: 'block',
+            'margin-bottom': '16px',
+            border: '1px solid var(--fw-border-subtle, #eef0ef)',
+          }}
         />
       </Show>
       <div
         class="announcement-body"
         data-testid="announcement-body"
-        style={{ 'font-size': '14px', 'line-height': '1.6', color: '#374151', 'word-break': 'break-word', 'max-width': '62ch' }}
+        style={{ 'font-size': '14px', 'line-height': '1.6', color: 'var(--fw-text-body, #374151)', 'word-break': 'break-word', 'max-width': '62ch' }}
         innerHTML={renderAnnouncementBody(p.a.body)}
       />
       <Show when={p.a.cta}>
@@ -322,13 +349,23 @@ export const AnnouncementsButton = (props: Props) => {
         onClick={openOverlay}
         style={{
           position: 'relative',
-          background: 'transparent',
-          border: 'none',
           cursor: 'pointer',
-          padding: '6px',
           display: 'flex',
           'align-items': 'center',
           color: props.color || 'currentColor',
+          ...(props.outlinedBorderColor
+            ? {
+                'justify-content': 'center',
+                width: '36px',
+                height: '36px',
+                'flex-shrink': '0',
+                padding: '0',
+                background: 'var(--fw-surface-raised, #FFFFFF)',
+                border: `1px solid ${props.outlinedBorderColor}`,
+                'border-radius': '8px',
+                'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)',
+              }
+            : { background: 'transparent', border: 'none', padding: '6px' }),
         }}
       >
         <svg
@@ -337,7 +374,7 @@ export const AnnouncementsButton = (props: Props) => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width={props.outlinedBorderColor ? '1.67' : '2'}
           stroke-linecap="round"
           stroke-linejoin="round"
         >
@@ -349,8 +386,8 @@ export const AnnouncementsButton = (props: Props) => {
             data-testid="announcement-unread-led"
             style={{
               position: 'absolute',
-              top: '2px',
-              right: '2px',
+              top: props.outlinedBorderColor ? '-6px' : '2px',
+              right: props.outlinedBorderColor ? '-6px' : '2px',
               'min-width': '15px',
               height: '15px',
               padding: '0 4px',
@@ -377,7 +414,7 @@ export const AnnouncementsButton = (props: Props) => {
             style={{
               position: 'fixed',
               inset: '0',
-              background: 'rgba(0,0,0,0.45)',
+              background: 'var(--fw-overlay, rgba(0,0,0,0.45))',
               display: 'flex',
               'align-items': 'center',
               'justify-content': 'center',
@@ -391,15 +428,15 @@ export const AnnouncementsButton = (props: Props) => {
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                background: '#fff',
-                color: '#111827',
+                background: 'var(--fw-surface, #fff)',
+                color: 'var(--fw-text-strong, #111827)',
                 'border-radius': '16px',
                 width: 'min(94%, 600px)',
                 'max-height': '86vh',
                 display: 'flex',
                 'flex-direction': 'column',
                 overflow: 'hidden',
-                'box-shadow': '0 20px 60px rgba(0,0,0,0.35)',
+                'box-shadow': 'var(--fw-overlay-shadow, 0 20px 60px rgba(0,0,0,0.35))',
                 'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
               }}
             >
@@ -409,15 +446,22 @@ export const AnnouncementsButton = (props: Props) => {
                   'align-items': 'center',
                   'justify-content': 'space-between',
                   padding: '14px 24px',
-                  'border-bottom': '1px solid #eef0ef',
+                  'border-bottom': '1px solid var(--fw-border-subtle, #eef0ef)',
                   flex: 'none',
                 }}
               >
-                <span style={{ 'font-size': '12px', 'font-weight': '600', color: '#6b7280' }}>What's new</span>
+                <span style={{ 'font-size': '12px', 'font-weight': '600', color: 'var(--fw-text-faint, #6b7280)' }}>What's new</span>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', 'font-size': '20px', color: '#6b7280', 'line-height': '1' }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    'font-size': '20px',
+                    color: 'var(--fw-text-faint, #6b7280)',
+                    'line-height': '1',
+                  }}
                 >
                   ×
                 </button>
@@ -427,7 +471,7 @@ export const AnnouncementsButton = (props: Props) => {
                 <Show
                   when={newAnnouncements().length > 0}
                   fallback={
-                    <div style={{ padding: '32px 24px', 'text-align': 'center', color: '#6b7280', 'font-size': '13px' }}>
+                    <div style={{ padding: '32px 24px', 'text-align': 'center', color: 'var(--fw-text-faint, #6b7280)', 'font-size': '13px' }}>
                       <div style={{ 'font-size': '22px', 'margin-bottom': '6px' }}>🎉</div>
                       You're all caught up
                     </div>
@@ -449,12 +493,12 @@ export const AnnouncementsButton = (props: Props) => {
                     'justify-content': 'space-between',
                     gap: '14px',
                     padding: '12px 24px',
-                    'border-top': '1px solid #eef0ef',
-                    background: '#fff',
+                    'border-top': '1px solid var(--fw-border-subtle, #eef0ef)',
+                    background: 'var(--fw-surface, #fff)',
                     flex: 'none',
                   }}
                 >
-                  <span style={{ 'font-size': '12px', color: '#9ca3af' }}>
+                  <span style={{ 'font-size': '12px', color: 'var(--fw-text-faint, #9ca3af)' }}>
                     {newAnnouncements().length > 0 ? `${newAnnouncements().length} new` : 'Nothing new'}
                   </span>
                   <button
@@ -465,11 +509,11 @@ export const AnnouncementsButton = (props: Props) => {
                       'align-items': 'center',
                       gap: '6px',
                       padding: '8px 14px',
-                      background: '#f5f6f7',
+                      background: 'var(--fw-surface-raised, #f5f6f7)',
                       border: 'none',
                       'border-radius': '8px',
                       cursor: 'pointer',
-                      color: '#4b5563',
+                      color: 'var(--fw-text-muted, #4b5563)',
                       'font-size': '13px',
                       'font-weight': '600',
                     }}

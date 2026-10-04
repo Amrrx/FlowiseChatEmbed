@@ -12,6 +12,11 @@ type BotProps = {
   chatflowConfig?: Record<string, unknown>;
   observersConfig?: observersConfigType;
   theme?: BubbleTheme;
+  // Adopts a pre-placed <flowise-chatbot id="..."> tag in place instead of
+  // creating+appending a new one to document.body — lets a host render inline
+  // (layout: 'inline') exactly where its own markup puts it, mirroring
+  // initFull's existing id-adoption option above.
+  id?: string;
 };
 
 let elementUsed: Element | undefined;
@@ -45,9 +50,18 @@ export const init = (props: BotProps) => {
     return;
   }
   destroy();
-  const element = document.createElement('flowise-chatbot');
+  // When props.id is omitted (sidebar/floating today), behavior is unchanged:
+  // always create+append a new element. When given (inline), adopt the host's
+  // own pre-placed tag in place rather than creating a second element.
+  const element = props.id ? document.getElementById(props.id) : null;
+  if (!element) {
+    const created = document.createElement('flowise-chatbot');
+    Object.assign(created, props);
+    document.body.appendChild(created);
+    elementUsed = created;
+    return;
+  }
   Object.assign(element, props);
-  document.body.appendChild(element);
   elementUsed = element;
 };
 

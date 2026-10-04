@@ -1,10 +1,12 @@
 import { For, Show } from 'solid-js';
 import { QuickAction } from '@/api/quickActions';
+import type { QuickActionsTheme } from '@/features/bubble/types';
 
 type Props = {
   actions?: QuickAction[];
   disabled?: boolean;
   onActionClick?: (payload: string, id: string) => void;
+  theme?: QuickActionsTheme;
 };
 
 /** Movement past this many pixels is a drag, not a click. */
@@ -76,8 +78,22 @@ export const SuggestedActions = (props: Props) => {
 
   return (
     <Show when={props.actions?.length}>
-      <div class="w-full px-5 pt-1 shrink-0">
-        <div class="text-[10px] leading-none uppercase tracking-wide text-gray-500 pb-1">Quick actions</div>
+      <div class={'w-full pt-1 shrink-0' + (props.theme ? ' px-4' : ' px-5')}>
+        <div
+          class={
+            'leading-none pb-1' +
+            (props.theme?.labelUppercase === false ? '' : ' uppercase tracking-wide') +
+            (props.theme?.labelColor ? '' : ' text-gray-500') +
+            (props.theme?.labelFontSize ? '' : ' text-[10px]')
+          }
+          style={{
+            ...(props.theme?.labelColor ? { color: props.theme.labelColor } : {}),
+            ...(props.theme?.labelFontSize ? { 'font-size': `${props.theme.labelFontSize}px`, 'line-height': '1.5' } : {}),
+            ...(props.theme?.labelFontWeight ? { 'font-weight': props.theme.labelFontWeight } : {}),
+          }}
+        >
+          {props.theme?.label ?? 'Quick actions'}
+        </div>
         <div
           ref={scroller}
           data-testid="quick-actions"
@@ -99,11 +115,22 @@ export const SuggestedActions = (props: Props) => {
                 title={action.label}
                 onClick={() => props.onActionClick?.(action.payload, action.id)}
                 class={
-                  'px-3.5 py-1.5 whitespace-nowrap rounded-full text-[13px] font-medium border transition-all duration-200 ' +
+                  'whitespace-nowrap rounded-full border transition-all duration-200 ' +
+                  (props.theme?.chipPadding ? '' : 'px-3.5 py-1.5 ') +
+                  (props.theme?.chipFontSize ? '' : 'text-[13px] ') +
+                  (props.theme?.chipFontWeight ? '' : 'font-medium ') +
                   (props.disabled
                     ? 'opacity-50 cursor-not-allowed border-[#e5e5e5] text-gray-400 bg-[#f5f5f5]'
                     : 'cursor-pointer border-[#d1d1d6] text-gray-800 bg-[#f0f0f2] hover:shadow-md active:scale-98')
                 }
+                style={{
+                  ...(props.theme?.chipPadding ? { padding: props.theme.chipPadding } : {}),
+                  ...(props.theme?.chipFontSize ? { 'font-size': `${props.theme.chipFontSize}px`, 'line-height': '20px' } : {}),
+                  ...(props.theme?.chipFontWeight ? { 'font-weight': props.theme.chipFontWeight } : {}),
+                  ...(!props.disabled && props.theme?.chipBackgroundColor ? { 'background-color': props.theme.chipBackgroundColor } : {}),
+                  ...(!props.disabled && props.theme?.chipBorder ? { border: props.theme.chipBorder } : {}),
+                  ...(!props.disabled && props.theme?.chipTextColor ? { color: props.theme.chipTextColor } : {}),
+                }}
               >
                 {action.label}
               </button>
