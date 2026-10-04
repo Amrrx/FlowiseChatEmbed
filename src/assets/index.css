@@ -568,14 +568,14 @@ textarea {
   font-size: 15px;
   font-weight: 650;
   line-height: 1.3;
-  color: #0b1220;
+  color: var(--fw-text-strong, #0b1220);
   margin: 22px 0 6px;
 }
 .announcement-body h4 {
   font-size: 13.5px;
   font-weight: 650;
   line-height: 1.3;
-  color: #0b1220;
+  color: var(--fw-text-strong, #0b1220);
   margin: 18px 0 6px;
 }
 .announcement-body > h3:first-child,
@@ -599,13 +599,13 @@ textarea {
  * emphasised phrase read as a heading. Colour separates them without adding weight. */
 .announcement-body strong {
   font-weight: 600;
-  color: #0b1220;
+  color: var(--fw-text-strong, #0b1220);
 }
 .announcement-body em {
   font-style: italic;
 }
 .announcement-body a {
-  color: #2563eb;
+  color: var(--fw-link, #2563eb);
   text-decoration: underline;
 }
 /* `inherit` rather than values, so this tracks the body text on both surfaces —
@@ -614,7 +614,7 @@ textarea {
   font-size: inherit;
   line-height: inherit;
   color: inherit;
-  background: #f3f4f6;
+  background: var(--fw-surface-raised, #f3f4f6);
   padding: 1px 4px;
   border-radius: 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -622,10 +622,10 @@ textarea {
 .announcement-body blockquote {
   margin: 0 0 10px;
   padding: 10px 14px;
-  border-left: 3px solid #0f6b5c;
+  border-left: 3px solid var(--fw-quote-border, #0f6b5c);
   border-radius: 0 8px 8px 0;
-  background: #f5f8f7;
-  color: #47555f;
+  background: var(--fw-quote-bg, #f5f8f7);
+  color: var(--fw-text-muted, #47555f);
 }
 .announcement-body > *:last-child {
   margin-bottom: 0;

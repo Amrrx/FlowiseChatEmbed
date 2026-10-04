@@ -20,6 +20,7 @@ const dark = {
   textMuted: '#9ba0aa',
   textFaint: '#767c87',
   icon: '#b4b9c2',
+  link: '#6aa9ff',
 };
 
 /**
@@ -42,6 +43,22 @@ export const colorSchemeStyle = (scheme: BubbleTheme['colorScheme']) =>
   --fw-text-muted: ${dark.textMuted};
   --fw-icon: ${dark.icon};
   --fw-grip-filter: invert(1) opacity(0.6);
+  --fw-surface: ${dark.surface};
+  --fw-text-strong: ${dark.text};
+  --fw-text-body: ${dark.icon};
+  --fw-text-faint: ${dark.textFaint};
+  --fw-border-subtle: ${dark.border};
+  --fw-link: ${dark.link};
+  --fw-quote-bg: ${dark.surfaceAlt};
+  --fw-quote-border: #47cd89;
+  --fw-overlay: #00000099;
+  --fw-overlay-shadow: inset 0 1px 0 #ffffff0d, 0 20px 60px #00000099;
+  --fw-cat-feature-tint: #12261c;
+  --fw-cat-feature-ink: #47cd89;
+  --fw-cat-fix-tint: #2b1f0a;
+  --fw-cat-fix-ink: #fdb022;
+  --fw-cat-notice-tint: ${dark.surfaceRaised};
+  --fw-cat-notice-ink: ${dark.textMuted};
   --chatbot-input-placeholder-color: ${dark.textFaint};
   --chatbot-host-bubble-color: ${dark.text};
 }`
