@@ -31,6 +31,12 @@ type TextInputProps = {
   // Same flag Bot.tsx uses to flatten the title bar's corners for sidebar/inline
   // layouts — the composer needs it too, it just never got wired through.
   squareCorners?: boolean;
+  // See TextInputTheme: 'outlined' draws a bordered field with the send button beside it.
+  variant?: 'default' | 'outlined';
+  borderColor?: string;
+  focusBorderColor?: string;
+  borderRadius?: number;
+  inputFontSize?: number;
 };
 
 const defaultBackgroundColor = '#ffffff';
@@ -140,36 +146,99 @@ export const TextInput = (props: TextInputProps) => {
     return '*';
   };
 
-  return (
-    <div
-      class="w-full h-auto max-h-[192px] min-h-[56px] flex flex-col items-end justify-between chatbot-input transition-all duration-200"
-      data-testid="input"
+  const isOutlined = () => props.variant === 'outlined';
+  const outlinedRadius = () => `${props.borderRadius ?? 8}px`;
+  const outlinedBorder = () => props.borderColor ?? '#D5D7DA';
+  const outlinedFocusBorder = () => props.focusBorderColor ?? props.sendButtonColor ?? defaultSendButtonColor;
+
+  const fieldStyle = () =>
+    isOutlined()
+      ? {
+          'background-color': props.backgroundColor ?? defaultBackgroundColor,
+          color: props.textColor ?? defaultTextColor,
+          'border-radius': outlinedRadius(),
+          border: `1px solid ${outlinedBorder()}`,
+          'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)',
+          overflow: 'hidden',
+          'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        }
+      : {
+          margin: 'auto',
+          'background-color': props.backgroundColor ?? defaultBackgroundColor,
+          color: props.textColor ?? defaultTextColor,
+          'border-radius': props.squareCorners ? '0px' : '28px',
+          border: '2px solid rgba(59, 130, 246, 0.2)',
+          'box-shadow': '0 2px 12px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06)',
+          overflow: 'hidden',
+          'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        };
+
+  const onFieldFocusIn = (e: FocusEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    if (isOutlined()) {
+      el.style.borderColor = outlinedFocusBorder();
+      return;
+    }
+    el.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+    el.style.boxShadow = '0 4px 16px rgba(59, 130, 246, 0.15), 0 2px 4px rgba(0, 0, 0, 0.08)';
+  };
+
+  const onFieldFocusOut = (e: FocusEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    if (isOutlined()) {
+      el.style.borderColor = outlinedBorder();
+      return;
+    }
+    el.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+    el.style.boxShadow = '0 2px 12px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06)';
+  };
+
+  const sendButton = () => (
+    <button
+      type="button"
+      disabled={props.disabled || isSendButtonDisabled()}
+      onClick={submit}
+      class={'transition-all duration-200 hover:shadow-lg active:scale-95' + (isOutlined() ? ' shrink-0' : ' p-2 rounded-full')}
       style={{
-        margin: 'auto',
-        'background-color': props.backgroundColor ?? defaultBackgroundColor,
-        color: props.textColor ?? defaultTextColor,
-        'border-radius': props.squareCorners ? '0px' : '28px',
-        border: '2px solid rgba(59, 130, 246, 0.2)',
-        'box-shadow': '0 2px 12px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06)',
-        overflow: 'hidden',
-        'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        'background-color': props.sendButtonColor ?? defaultSendButtonColor,
+        cursor: props.disabled || isSendButtonDisabled() ? 'not-allowed' : 'pointer',
+        opacity: props.disabled || isSendButtonDisabled() ? '0.5' : '1',
+        display: 'flex',
+        'align-items': 'center',
+        'justify-content': 'center',
+        border: 'none',
+        ...(isOutlined()
+          ? { width: '40px', height: '40px', 'border-radius': outlinedRadius(), 'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)' }
+          : { 'min-width': '36px', 'min-height': '36px', 'box-shadow': '0 2px 6px rgba(59, 130, 246, 0.25)' }),
       }}
+    >
+      <Show when={isOutlined()} fallback={<SendIcon color="#FFFFFF" width="18" height="18" />}>
+        <svg width="20" height="20" viewBox="-1.667 -1.667 20 20" fill="#FFFFFF" aria-hidden="true">
+          <path d="M16.1961 0.484986C15.7793 0.0571651 15.1624 -0.102219 14.5872 0.0655537L1.17333 3.96627C0.566415 4.13488 0.136239 4.61891 0.0203585 5.23379C-0.0980233 5.85959 0.315479 6.65399 0.8557 6.98618L5.04992 9.56401C5.48009 9.82825 6.03532 9.76198 6.3913 9.40295L11.1941 4.57025C11.4359 4.31859 11.836 4.31859 12.0778 4.57025C12.3196 4.81352 12.3196 5.20779 12.0778 5.45945L7.26666 10.293C6.90985 10.6512 6.84315 11.209 7.10576 11.6419L9.66847 15.8781C9.9686 16.3815 10.4855 16.6667 11.0524 16.6667C11.1191 16.6667 11.1941 16.6667 11.2608 16.6583C11.9111 16.5744 12.4279 16.1298 12.6197 15.5006L16.5963 2.10399C16.7714 1.53357 16.613 0.912806 16.1961 0.484986Z" />
+        </svg>
+      </Show>
+    </button>
+  );
+
+  const field = (
+    <div
+      class={
+        isOutlined()
+          ? 'flex-1 min-w-0 h-auto max-h-[192px] flex flex-col justify-between chatbot-input transition-colors duration-200'
+          : 'w-full h-auto max-h-[192px] min-h-[56px] flex flex-col items-end justify-between chatbot-input transition-all duration-200'
+      }
+      data-testid="input"
+      style={fieldStyle()}
       onKeyDown={handleKeyDown}
-      onFocusIn={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59, 130, 246, 0.5)';
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 16px rgba(59, 130, 246, 0.15), 0 2px 4px rgba(0, 0, 0, 0.08)';
-      }}
-      onFocusOut={(e) => {
-        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(59, 130, 246, 0.2)';
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(59, 130, 246, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06)';
-      }}
+      onFocusIn={onFieldFocusIn}
+      onFocusOut={onFieldFocusOut}
     >
       <Show when={warningMessage() !== ''}>
         <div class="w-full px-4 pt-4 pb-1 text-red-500 text-sm" data-testid="warning-message">
           {warningMessage()}
         </div>
       </Show>
-      <div class="w-full flex items-center justify-between px-3 py-2 gap-2">
+      <div class={'w-full flex items-center justify-between' + (isOutlined() ? '' : ' px-3 py-2 gap-2')}>
         {/* Left side icons */}
         <div class="flex items-center gap-1">
           {props.uploadsConfig?.isRAGFileUploadAllowed || props.isFullFileUpload ? (
@@ -252,34 +321,25 @@ export const TextInput = (props: TextInputProps) => {
             ref={inputRef as HTMLTextAreaElement}
             onInput={handleInput}
             value={props.inputValue}
-            fontSize={props.fontSize}
+            fontSize={isOutlined() ? props.inputFontSize ?? 16 : props.fontSize}
             disabled={props.disabled}
             placeholder={props.placeholder ?? 'Message...'}
+            compact={isOutlined()}
           />
         </div>
 
-        {/* Send button */}
-        <button
-          type="button"
-          disabled={props.disabled || isSendButtonDisabled()}
-          onClick={submit}
-          class="p-2 rounded-full transition-all duration-200 hover:shadow-lg active:scale-95"
-          style={{
-            'background-color': props.sendButtonColor ?? defaultSendButtonColor,
-            cursor: props.disabled || isSendButtonDisabled() ? 'not-allowed' : 'pointer',
-            opacity: props.disabled || isSendButtonDisabled() ? '0.5' : '1',
-            'min-width': '36px',
-            'min-height': '36px',
-            display: 'flex',
-            'align-items': 'center',
-            'justify-content': 'center',
-            border: 'none',
-            'box-shadow': '0 2px 6px rgba(59, 130, 246, 0.25)',
-          }}
-        >
-          <SendIcon color="#FFFFFF" width="18" height="18" />
-        </button>
+        {/* Send button — beside the field instead when outlined */}
+        <Show when={!isOutlined()}>{sendButton()}</Show>
       </div>
     </div>
+  );
+
+  return (
+    <Show when={isOutlined()} fallback={field}>
+      <div class="w-full flex items-center gap-3">
+        {field}
+        {sendButton()}
+      </div>
+    </Show>
   );
 };

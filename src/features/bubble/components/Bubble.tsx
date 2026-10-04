@@ -1,4 +1,4 @@
-import { createSignal, Show, splitProps, onCleanup, onMount, createEffect } from 'solid-js';
+import { createSignal, Show, splitProps, onCleanup, onMount, createEffect, on } from 'solid-js';
 import styles from '../../../assets/index.css';
 import { BubbleButton } from './BubbleButton';
 import { BubbleParams } from '../types';
@@ -7,6 +7,7 @@ import Tooltip from './Tooltip';
 import { getBubbleButtonSize } from '@/utils';
 import { useAgUiStream } from '@/agui/useAgUiStream';
 import { createAnnouncements } from '@/components/AnnouncementsButton';
+import type { SwitchableLayout } from '@/components/HeaderMenu';
 
 const defaultButtonColor = '#00B8D9';
 const defaultIconColor = 'white';
@@ -15,6 +16,10 @@ const defaultIconColor = 'white';
 const sidebarMinViewportWidth = 768;
 const defaultSidebarWidth = 400;
 const minSidebarWidth = 240;
+const maxSidebarWidth = 600;
+// angular-split's vertical gutter grip (5×30 dots), so a host using it can match.
+const gripImage =
+  'url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==)';
 
 export type BubbleProps = BotProps & BubbleParams;
 
@@ -97,7 +102,12 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
     onCleanup(() => window.removeEventListener('resize', onResize));
   });
 
-  const layout = () => bubbleProps.theme?.chatWindow?.layout ?? 'floating';
+  const configuredLayout = () => bubbleProps.theme?.chatWindow?.layout ?? 'floating';
+  // Set by the title bar's layout switcher. Cleared whenever the host re-inits
+  // with a different layout, so the host's own choice always wins.
+  const [layoutOverride, setLayoutOverride] = createSignal<SwitchableLayout | null>(null);
+  createEffect(on(configuredLayout, () => setLayoutOverride(null), { defer: true }));
+  const layout = () => layoutOverride() ?? configuredLayout();
   const isSidebarMode = () => layout() === 'sidebar' && viewportWidth() >= sidebarMinViewportWidth;
   // Renders unpositioned, filling whatever box the host placed the element in
   // (see window.ts's init({id}) adoption option) — no launcher, no fixed
@@ -106,8 +116,90 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   const isInlineMode = () => layout() === 'inline';
   // Clamped so a misconfigured width can't render a degenerate panel or hand the
   // host a margin that doesn't match what was drawn.
-  const sidebarWidth = () => Math.max(minSidebarWidth, Math.min(bubbleProps.theme?.chatWindow?.width ?? defaultSidebarWidth, viewportWidth()));
-  const hideLauncher = () => isInlineMode() || (bubbleProps.theme?.button?.hideLauncher ?? false);
+  const sidebarMin = () => bubbleProps.theme?.chatWindow?.sidebarMinWidth ?? minSidebarWidth;
+  const sidebarMax = () => bubbleProps.theme?.chatWindow?.sidebarMaxWidth ?? maxSidebarWidth;
+  const sidebarWidthKey = () => (props.chatflowid ? `${props.chatflowid}_SIDEBAR_WIDTH` : null);
+  const readSidebarWidth = () => {
+    const key = sidebarWidthKey();
+    if (!key) return null;
+    try {
+      const value = Number(localStorage.getItem(key));
+      return value > 0 ? value : null;
+    } catch (e) {
+      return null;
+    }
+  };
+  // Only a user drag sets this; until then the theme width (or the default) applies.
+  const [draggedSidebarWidth, setDraggedSidebarWidth] = createSignal<number | null>(
+    bubbleProps.theme?.chatWindow?.sidebarResizable ? readSidebarWidth() : null,
+  );
+  const [isSidebarResizing, setIsSidebarResizing] = createSignal(false);
+  const sidebarWidth = () =>
+    Math.max(
+      sidebarMin(),
+      Math.min(draggedSidebarWidth() ?? bubbleProps.theme?.chatWindow?.width ?? defaultSidebarWidth, sidebarMax(), viewportWidth()),
+    );
+  const hideLauncher = () =>
+    isInlineMode() ||
+    (bubbleProps.theme?.button?.hideLauncher ?? false) ||
+    (isSidebarMode() && (bubbleProps.theme?.button?.hideLauncherWhenDocked ?? false)) ||
+    (isBotOpened() && (bubbleProps.theme?.button?.hideLauncherWhenOpen ?? false));
+
+  // Only floating and sidebar can be switched between; inline is placed by the host.
+  const switchableLayout = (): SwitchableLayout | undefined => (isInlineMode() ? undefined : isSidebarMode() ? 'sidebar' : 'floating');
+  const switchLayout = (next: SwitchableLayout) => {
+    if (next === switchableLayout()) return;
+    setLayoutOverride(next);
+    document.dispatchEvent(new CustomEvent('flowise-layout-change', { detail: { layout: next } }));
+  };
+
+  let sidebarResizeStartX = 0;
+  let sidebarResizeStartWidth = 0;
+  const onSidebarResizeMove = (e: PointerEvent) => {
+    // The panel is anchored to the right edge: dragging its left edge leftward grows it.
+    const next = sidebarResizeStartWidth + (sidebarResizeStartX - e.clientX);
+    setDraggedSidebarWidth(Math.round(Math.max(sidebarMin(), Math.min(next, sidebarMax()))));
+  };
+  const onSidebarResizeUp = () => {
+    document.removeEventListener('pointermove', onSidebarResizeMove);
+    document.removeEventListener('pointerup', onSidebarResizeUp);
+    setIsSidebarResizing(false);
+    const key = sidebarWidthKey();
+    if (!key) return;
+    try {
+      localStorage.setItem(key, String(sidebarWidth()));
+    } catch (e) {
+      return;
+    }
+  };
+  const [resizeHandleHover, setResizeHandleHover] = createSignal(false);
+  const resizeHandleStyle = () => {
+    const handle = bubbleProps.theme?.chatWindow?.sidebarResizeHandle;
+    const base = { position: 'absolute' as const, top: '0', bottom: '0', cursor: 'col-resize', 'z-index': 60, 'touch-action': 'none' };
+    if (!handle) return { ...base, left: '-3px', width: '6px' };
+    const width = handle.width ?? 5;
+    const color = handle.color ?? '#eee';
+    return {
+      ...base,
+      left: `-${width}px`,
+      width: `${width}px`,
+      'background-color': resizeHandleHover() || isSidebarResizing() ? handle.hoverColor ?? color : color,
+      ...(handle.grip === false ? {} : { 'background-image': gripImage, 'background-position': 'center', 'background-repeat': 'no-repeat' }),
+    };
+  };
+
+  const onSidebarResizeDown = (e: PointerEvent) => {
+    e.preventDefault();
+    sidebarResizeStartX = e.clientX;
+    sidebarResizeStartWidth = sidebarWidth();
+    setIsSidebarResizing(true);
+    document.addEventListener('pointermove', onSidebarResizeMove);
+    document.addEventListener('pointerup', onSidebarResizeUp);
+  };
+  onCleanup(() => {
+    document.removeEventListener('pointermove', onSidebarResizeMove);
+    document.removeEventListener('pointerup', onSidebarResizeUp);
+  });
   const themeColor = () => bubbleProps.theme?.themeColor;
 
   const backgroundStyle = () => ({
@@ -123,8 +215,14 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   // reflow the host by itself. Dispatched on `document` rather than the host
   // element: on teardown the element is already detached, so a bubbling event from
   // it would never reach a document-level listener and the host would stay indented.
+  // `resizing` is true while the user drags the sidebar edge, so the host can follow
+  // the pointer without easing.
   const emitSidebarState = (open: boolean) => {
-    document.dispatchEvent(new CustomEvent('flowise-sidebar-toggle', { detail: { open, width: open ? sidebarWidth() : 0 } }));
+    document.dispatchEvent(
+      new CustomEvent('flowise-sidebar-toggle', {
+        detail: { open, width: open ? sidebarWidth() : 0, resizing: open && isSidebarResizing() },
+      }),
+    );
   };
 
   createEffect(() => emitSidebarState(isSidebarMode() && isBotOpened()));
@@ -176,9 +274,22 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
   const minChatSize = 300;
   const sizeMargin = 20;
 
+  // A pinned floating window sits at fixed viewport offsets, unfolding from its own
+  // bottom-right corner rather than from the launcher.
+  const floatingPinned = () =>
+    bubbleProps.theme?.chatWindow?.floatingRight !== undefined || bubbleProps.theme?.chatWindow?.floatingBottom !== undefined;
+  const pinnedAnchor = () => ({
+    right: `${bubbleProps.theme?.chatWindow?.floatingRight ?? 20}px`,
+    left: 'auto',
+    bottom: `${bubbleProps.theme?.chatWindow?.floatingBottom ?? 20}px`,
+    top: 'auto',
+    'transform-origin': 'bottom right',
+  });
+
   // Which screen corner the button occupies — the single source of truth for how the
   // window unfolds, where the resize grip sits, and which way a resize drag grows.
   const anchorFlags = () => {
+    if (floatingPinned()) return { nearRight: true, nearBottom: true };
     const pos = buttonPosition();
     return {
       nearRight: pos.right + buttonSize / 2 < window.innerWidth / 2,
@@ -343,21 +454,25 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
     if (isSidebarMode()) {
       return {
         ...backgroundStyle(),
-        top: '0',
-        bottom: '0',
+        top: `${bubbleProps.theme?.chatWindow?.sidebarTop ?? 0}px`,
+        bottom: `${bubbleProps.theme?.chatWindow?.sidebarBottom ?? 0}px`,
         right: '0',
         left: 'auto',
-        height: '100vh',
+        height: 'auto',
         'max-height': 'none',
         width: `${sidebarWidth()}px`,
-        transition: 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
+        transition: isSidebarResizing() ? 'none' : 'transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms ease-out',
         transform: isBotOpened() ? 'translateX(0)' : 'translateX(100%)',
         'box-shadow': bubbleProps.theme?.chatWindow?.sidebarBoxShadow ?? '-4px 0 24px rgba(0, 0, 0, 0.12)',
-        'border-left': `${bubbleProps.theme?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${
-          bubbleProps.theme?.chatWindow?.sidebarBorderColor ?? '#d1d5db'
-        }`,
+        ...(bubbleProps.theme?.chatWindow?.sidebarBorder
+          ? { border: bubbleProps.theme.chatWindow.sidebarBorder }
+          : {
+              'border-left': `${bubbleProps.theme?.chatWindow?.sidebarBorderWidth ?? 1}px solid ${
+                bubbleProps.theme?.chatWindow?.sidebarBorderColor ?? '#d1d5db'
+              }`,
+            }),
         'border-radius': '0',
-        'z-index': 42424242,
+        'z-index': bubbleProps.theme?.chatWindow?.sidebarZIndex ?? 42424242,
       };
     }
 
@@ -366,17 +481,18 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
       ...backgroundStyle(),
       transition: 'transform 200ms cubic-bezier(0, 1.2, 1, 1), opacity 150ms ease-out',
       transform: isBotOpened() ? 'scale3d(1, 1, 1)' : 'scale3d(0, 0, 1)',
-      'box-shadow': '0 4px 24px rgba(0, 0, 0, 0.12)',
+      'box-shadow': bubbleProps.theme?.chatWindow?.floatingBoxShadow ?? '0 4px 24px rgba(0, 0, 0, 0.12)',
       'z-index': 42424242,
-      'border-radius': '20px',
-      ...windowAnchor(),
+      'border-radius': `${bubbleProps.theme?.chatWindow?.floatingBorderRadius ?? 20}px`,
+      ...(bubbleProps.theme?.chatWindow?.floatingBorder ? { border: bubbleProps.theme.chatWindow.floatingBorder } : {}),
+      ...(floatingPinned() ? pinnedAnchor() : windowAnchor()),
     };
   };
 
   const panelClass = () => {
     if (isInlineMode()) return 'relative w-full h-full';
     const visibility = isBotOpened() ? ' opacity-1' : ' opacity-0 pointer-events-none';
-    if (isSidebarMode()) return 'fixed inset-y-0 right-0' + visibility;
+    if (isSidebarMode()) return 'fixed right-0' + visibility;
     return `fixed sm:right-5 w-full sm:w-[400px] max-h-[704px]` + visibility + ` bottom-${chatWindowBottom}px`;
   };
 
@@ -425,6 +541,15 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
         />
       </Show>
       <div part="bot" ref={windowRef} style={panelStyle()} class={panelClass()}>
+        <Show when={isBotOpened() && isSidebarMode() && bubbleProps.theme?.chatWindow?.sidebarResizable}>
+          <div
+            style={resizeHandleStyle()}
+            onPointerDown={onSidebarResizeDown}
+            onPointerEnter={() => setResizeHandleHover(true)}
+            onPointerLeave={() => setResizeHandleHover(false)}
+            title="Drag to resize"
+          />
+        </Show>
         <Show when={isBotOpened() && !isSidebarMode() && !isInlineMode()}>
           <div
             class="hidden sm:flex opacity-90 hover:opacity-100 transition-opacity duration-150"
@@ -439,7 +564,7 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
         </Show>
         <Show when={isBotStarted()}>
           <div class="relative h-full">
-            <Show when={isBotOpened() && !isInlineMode()}>
+            <Show when={isBotOpened() && !isInlineMode() && !bubbleProps.theme?.chatWindow?.header}>
               {/* Cross button For only mobile screen use this <Show when={isBotOpened() && window.innerWidth <= 640}>  */}
               <button
                 onClick={closeBot}
@@ -462,6 +587,12 @@ export const Bubble = (props: BubbleProps, { element: hostElement }: { element: 
               bubbleBackgroundColor={bubbleProps.theme?.button?.backgroundColor ?? themeColor() ?? defaultButtonColor}
               bubbleTextColor={bubbleProps.theme?.button?.iconColor ?? defaultIconColor}
               squareCorners={isSidebarMode() || isInlineMode()}
+              header={bubbleProps.theme?.chatWindow?.header}
+              cornerRadius={bubbleProps.theme?.chatWindow?.floatingBorderRadius}
+              quickActionsTheme={bubbleProps.theme?.chatWindow?.quickActions}
+              currentLayout={switchableLayout()}
+              onSwitchLayout={bubbleProps.theme?.chatWindow?.header?.layoutSwitcher && !isInlineMode() ? switchLayout : undefined}
+              showCloseInTitle={!!bubbleProps.theme?.chatWindow?.header && !isInlineMode()}
               titleHeight={bubbleProps.theme?.chatWindow?.titleHeight}
               showTitle={bubbleProps.theme?.chatWindow?.showTitle}
               showAgentMessages={bubbleProps.theme?.chatWindow?.showAgentMessages}

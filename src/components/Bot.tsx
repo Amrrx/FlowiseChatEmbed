@@ -59,6 +59,8 @@ import { ToolCallBubble } from './bubbles/ToolCallBubble';
 import { NotificationBubble } from './bubbles/NotificationBubble';
 import { NotificationSummaryCard } from './bubbles/NotificationSummaryCard';
 import { AnnouncementsButton, AnnouncementsController } from './AnnouncementsButton';
+import { HeaderMenu, SwitchableLayout } from './HeaderMenu';
+import type { HeaderTheme, QuickActionsTheme } from '@/features/bubble/types';
 import type { Notification } from '@/api/notifications';
 import { markNotificationsRead } from '@/api/notifications';
 
@@ -224,6 +226,13 @@ export type BotProps = {
   // (which also suppresses the disclaimer's deny button and halves audio previews).
   squareCorners?: boolean;
   titleHeight?: number; // px; falls back to the stylesheet's 56px when unset
+  cornerRadius?: number; // px; top corner radius when not square, defaults to 20
+  header?: HeaderTheme;
+  quickActionsTheme?: QuickActionsTheme;
+  currentLayout?: SwitchableLayout;
+  onSwitchLayout?: (layout: SwitchableLayout) => void;
+  // Renders the close button inside the title bar instead of the bubble's own overlay.
+  showCloseInTitle?: boolean;
   footer?: FooterTheme;
   sourceDocsTitle?: string;
   observersConfig?: observersConfigType;
@@ -3702,8 +3711,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 ...(props.titleHeight ? { height: `${props.titleHeight}px` } : {}),
                 background: props.titleBackgroundColor || props.bubbleBackgroundColor || defaultTitleBackgroundColor,
                 color: props.titleTextColor || props.bubbleTextColor || defaultBackgroundColor,
-                'border-top-left-radius': props.isFullPage || props.squareCorners ? '0px' : '20px',
-                'border-top-right-radius': props.isFullPage || props.squareCorners ? '0px' : '20px',
+                'border-top-left-radius': props.isFullPage || props.squareCorners ? '0px' : `${props.cornerRadius ?? 20}px`,
+                'border-top-right-radius': props.isFullPage || props.squareCorners ? '0px' : `${props.cornerRadius ?? 20}px`,
+                ...(props.header
+                  ? { 'border-bottom': `1px solid ${props.header.borderColor ?? '#E9EAEB'}`, gap: '8px', 'padding-inline-end': '16px' }
+                  : {}),
                 'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               }}
             >
@@ -3714,7 +3726,13 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 </>
               </Show>
               <Show when={titleText()}>
-                <span class="px-3 whitespace-pre-wrap font-semibold max-w-full" style={{ 'font-size': '16px' }}>
+                <span
+                  class={'whitespace-pre-wrap font-semibold max-w-full' + (props.header ? ' ps-4 truncate min-w-0' : ' px-3')}
+                  style={{
+                    'font-size': `${props.header?.fontSize ?? 16}px`,
+                    ...(props.header?.fontWeight ? { 'font-weight': props.header.fontWeight } : {}),
+                  }}
+                >
                   {titleText()}
                 </span>
               </Show>
@@ -3739,7 +3757,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                   agentId={props.agentId ?? props.chatflowid ?? ''}
                   userToken={((props.chatflowConfig?.vars as any)?.userToken as string) ?? ''}
                   registerStreamHandler={stream.registerStreamHandler}
-                  color={props.titleTextColor || props.bubbleTextColor}
+                  color={props.header ? props.header.iconColor || '#535862' : props.titleTextColor || props.bubbleTextColor}
+                  outlinedBorderColor={props.header ? props.header.buttonBorderColor ?? '#D5D7DA' : undefined}
                   overlayMount={props.overlayMount}
                   controller={props.announceController}
                   chatOpened={props.chatOpened}
@@ -3760,15 +3779,91 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                   </Show>
                 </button>
               </Show>
-              <DeleteButton
-                sendButtonColor={props.bubbleTextColor}
-                type="button"
-                isDisabled={messages().length === 1}
-                class="my-2 ml-2"
-                on:click={clearChat}
+              <Show
+                when={props.header}
+                fallback={
+                  <DeleteButton
+                    sendButtonColor={props.bubbleTextColor}
+                    type="button"
+                    isDisabled={messages().length === 1}
+                    class="my-2 ml-2"
+                    on:click={clearChat}
+                  >
+                    <span style={{ 'font-family': 'Poppins, sans-serif' }}>Clear</span>
+                  </DeleteButton>
+                }
               >
-                <span style={{ 'font-family': 'Poppins, sans-serif' }}>Clear</span>
-              </DeleteButton>
+                {/* Same look as the ⋮ menu button beside it. */}
+                <button
+                  type="button"
+                  title={props.header?.labels?.clear ?? 'Reset Chat'}
+                  aria-label={props.header?.labels?.clear ?? 'Reset Chat'}
+                  disabled={messages().length === 1}
+                  onClick={clearChat}
+                  style={{
+                    display: 'flex',
+                    'align-items': 'center',
+                    'justify-content': 'center',
+                    width: '36px',
+                    height: '36px',
+                    'flex-shrink': '0',
+                    border: `1px solid ${props.header?.buttonBorderColor ?? '#D5D7DA'}`,
+                    'border-radius': '8px',
+                    'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)',
+                    background: '#FFFFFF',
+                    color: props.header?.iconColor || '#535862',
+                    cursor: messages().length === 1 ? 'not-allowed' : 'pointer',
+                    opacity: messages().length === 1 ? '0.5' : '1',
+                  }}
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.67"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
+                    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
+                  </svg>
+                </button>
+              </Show>
+              <Show when={props.header && props.onSwitchLayout}>
+                <HeaderMenu
+                  header={props.header as HeaderTheme}
+                  iconColor={props.header?.iconColor || '#535862'}
+                  currentLayout={props.currentLayout}
+                  onSwitchLayout={props.onSwitchLayout}
+                />
+              </Show>
+              <Show when={props.showCloseInTitle && props.closeBot}>
+                <button
+                  type="button"
+                  aria-label={props.header?.labels?.close ?? 'Close'}
+                  title={props.header?.labels?.close ?? 'Close'}
+                  onClick={() => props.closeBot?.()}
+                  style={{
+                    display: 'flex',
+                    'align-items': 'center',
+                    'justify-content': 'center',
+                    width: '24px',
+                    height: '24px',
+                    padding: '0',
+                    border: 'none',
+                    background: 'transparent',
+                    color: props.header?.iconColor || '#535862',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <svg width="24" height="24" viewBox="-5 -5 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M8.41424 7.0002L13.7072 1.70725C14.0982 1.31625 14.0982 0.68425 13.7072 0.29325C13.3162 -0.09775 12.6842 -0.09775 12.2932 0.29325L7.00024 5.5862L1.70725 0.29325C1.31625 -0.09775 0.68425 -0.09775 0.29325 0.29325C-0.09775 0.68425 -0.09775 1.31625 0.29325 1.70725L5.58624 7.0002L0.29325 12.2933C-0.09775 12.6842 -0.09775 13.3162 0.29325 13.7072C0.48825 13.9022 0.74425 14.0002 1.00025 14.0002C1.25625 14.0002 1.51225 13.9022 1.70725 13.7072L7.00024 8.4143L12.2932 13.7072C12.4882 13.9022 12.7442 14.0002 13.0002 14.0002C13.2562 14.0002 13.5122 13.9022 13.7072 13.7072C14.0982 13.3162 14.0982 12.6842 13.7072 12.2933L8.41424 7.0002Z" />
+                  </svg>
+                </button>
+              </Show>
             </div>
           ) : null}
           <div class="flex flex-col w-full h-full min-h-0 overflow-hidden justify-start z-0">
@@ -3797,6 +3892,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                           chatId={chatId()}
                           backgroundColor={props.userMessage?.backgroundColor}
                           textColor={props.userMessage?.textColor}
+                          borderRadius={props.userMessage?.borderRadius}
+                          padding={props.userMessage?.padding}
+                          boxShadow={props.userMessage?.boxShadow}
+                          bubbleFontSize={props.userMessage?.fontSize}
                           showAvatar={props.userMessage?.showAvatar}
                           avatarSrc={props.userMessage?.avatarSrc}
                           fontSize={props.fontSize}
@@ -3812,6 +3911,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                           apiHost={props.apiHost}
                           backgroundColor={props.botMessage?.backgroundColor}
                           textColor={props.botMessage?.textColor}
+                          borderRadius={props.botMessage?.borderRadius}
+                          padding={props.botMessage?.padding}
+                          boxShadow={props.botMessage?.boxShadow}
+                          bubbleFontSize={props.botMessage?.fontSize}
                           feedbackColor={props.feedback?.color}
                           showAvatar={props.botMessage?.showAvatar}
                           avatarSrc={props.botMessage?.avatarSrc}
@@ -4052,13 +4155,23 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 </Show>
               </Show>
             </div>
-            <SuggestedActions actions={quickActions()} disabled={quickActionsDisabled()} onActionClick={(payload) => promptClick(payload)} />
+            <SuggestedActions
+              actions={quickActions()}
+              disabled={quickActionsDisabled()}
+              onActionClick={(payload) => promptClick(payload)}
+              theme={props.quickActionsTheme}
+            />
             <Show when={previews().length > 0}>
               <div class="w-full flex items-center justify-start gap-2 px-5 pt-2 border-t border-[#eeeeee]">
                 <For each={[...previews()]}>{(item) => <>{previewDisplay(item)}</>}</For>
               </div>
             </Show>
-            <div class="w-full px-5 pt-2 pb-1 shrink-0">
+            <div
+              class={'w-full shrink-0' + (props.textInput?.variant === 'outlined' ? ' px-4 py-2 mt-2' : ' px-5 pt-2 pb-1')}
+              style={
+                props.textInput?.variant === 'outlined' ? { 'border-top': `1px solid ${props.textInput?.dividerColor ?? '#E9EAEB'}` } : undefined
+              }
+            >
               {isRecording() ? (
                 <>
                   {recordingNotSupported() ? (
@@ -4131,6 +4244,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                   handleFileChange={handleFileChange}
                   sendMessageSound={props.textInput?.sendMessageSound}
                   sendSoundLocation={props.textInput?.sendSoundLocation}
+                  variant={props.textInput?.variant}
+                  borderColor={props.textInput?.borderColor}
+                  focusBorderColor={props.textInput?.focusBorderColor}
+                  borderRadius={props.textInput?.borderRadius}
+                  inputFontSize={props.textInput?.fontSize}
                   enableInputHistory={true}
                   maxHistorySize={10}
                 />
