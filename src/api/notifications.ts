@@ -20,10 +20,24 @@ export type NotificationResponse = {
   total_count: number;
 };
 
-export async function fetchUnreadNotifications(apiHost: string, userId: string, limit = 50): Promise<NotificationResponse> {
-  const url = `${apiHost}/api/notifications?unread_only=true&limit=${limit}`;
+export type NotificationIdentity = {
+  apiHost: string;
+  userId: string;
+  agentId: string;
+  userToken: string;
+};
+
+const identityHeaders = (identity: NotificationIdentity): Record<string, string> => ({
+  'X-User-ID': identity.userId,
+  'X-Agent-ID': identity.agentId,
+  'X-User-Token': identity.userToken,
+});
+
+export async function fetchUnreadNotifications(identity: NotificationIdentity, limit = 50, signal?: AbortSignal): Promise<NotificationResponse> {
+  const url = `${identity.apiHost}/api/notifications?unread_only=true&limit=${limit}`;
   const response = await fetch(url, {
-    headers: { 'X-User-ID': userId },
+    headers: identityHeaders(identity),
+    signal,
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch notifications: ${response.status}`);
@@ -31,13 +45,16 @@ export async function fetchUnreadNotifications(apiHost: string, userId: string, 
   return response.json();
 }
 
-export async function markNotificationsRead(apiHost: string, userId: string, notificationIds: string[]): Promise<void> {
-  await fetch(`${apiHost}/api/notifications/read`, {
+export async function markNotificationsRead(identity: NotificationIdentity, notificationIds: string[]): Promise<void> {
+  const response = await fetch(`${identity.apiHost}/api/notifications/read`, {
     method: 'POST',
     headers: {
-      'X-User-ID': userId,
+      ...identityHeaders(identity),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ notification_ids: notificationIds }),
   });
+  if (!response.ok) {
+    throw new Error(`Failed to mark notifications read: ${response.status}`);
+  }
 }

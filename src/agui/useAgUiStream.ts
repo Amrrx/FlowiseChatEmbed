@@ -1,6 +1,6 @@
-import { createSignal, onCleanup, createEffect, Accessor, Setter } from 'solid-js';
+import { createSignal, onCleanup, createEffect, Accessor, Setter, untrack } from 'solid-js';
 import { connectStream, disconnectStream, StreamEvent } from './stream';
-import { fetchUnreadNotifications, type Notification } from '@/api/notifications';
+import { fetchUnreadNotifications, type Notification, type NotificationIdentity } from '@/api/notifications';
 import { getOrCreateSessionId, sessionGenerationOf } from '@/session/chatSession';
 
 export type UseAgUiStreamInput = {
@@ -32,16 +32,52 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
   const [pendingBotMessages, setPendingBotMessages] = createSignal<StreamEvent[]>([]);
   const [streamEventHandlers, setStreamEventHandlers] = createSignal<Array<(event: StreamEvent) => void>>([]);
 
-  const refreshUnread = async (): Promise<void> => {
+  let unreadRequest = 0;
+  let unreadController: AbortController | undefined;
+  const notificationIdentity = (): NotificationIdentity => {
     const vars = (input.chatflowConfig?.()?.vars ?? {}) as Record<string, string>;
-    if (!vars.userId) return;
+    return {
+      apiHost: input.apiHost?.() ?? '',
+      userId: vars.userId ?? '',
+      userToken: vars.userToken ?? '',
+      agentId: input.agentId?.() ?? '',
+    };
+  };
+  const notificationScope = (identity: NotificationIdentity): string =>
+    JSON.stringify([identity.apiHost, identity.userId, identity.agentId, identity.userToken]);
+  const invalidateUnread = (): void => {
+    ++unreadRequest;
+    unreadController?.abort();
+    unreadController = undefined;
+    setNotifications([]);
+    setInitialUnread([]);
+    setUnreadCount(0);
+  };
+  const refreshUnread = async (): Promise<void> => {
+    const identity = notificationIdentity();
+    if (!identity.userId || !identity.userToken || !identity.agentId) {
+      invalidateUnread();
+      return;
+    }
+    unreadController?.abort();
+    const controller = new AbortController();
+    unreadController = controller;
+    const request = ++unreadRequest;
+    const epoch = generation;
+    const scope = notificationScope(identity);
     try {
-      const res = await fetchUnreadNotifications(input.apiHost?.() ?? '', vars.userId);
+      const res = await fetchUnreadNotifications(identity, 50, controller.signal);
+      if (controller.signal.aborted || request !== unreadRequest || epoch !== generation || notificationScope(notificationIdentity()) !== scope)
+        return;
       setNotifications(res.notifications);
       setInitialUnread(res.notifications);
       setUnreadCount((current) => Math.max(current, res.unread_count));
     } catch (err) {
+      if (controller.signal.aborted || request !== unreadRequest || epoch !== generation || notificationScope(notificationIdentity()) !== scope)
+        return;
       console.warn('[Notifications] Refresh failed:', err);
+    } finally {
+      if (unreadController === controller) unreadController = undefined;
     }
   };
 
@@ -51,6 +87,9 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
   let connected = false;
   let connectedUserId: string | undefined;
   let connectedSessionId: string | undefined;
+  let connectedKey = '';
+  let ack: StreamEvent | undefined;
+  let generation = 0;
 
   createEffect(() => {
     if (input.protocol?.() !== 'ag-ui') return;
@@ -61,7 +100,16 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
 
     const vars = (input.chatflowConfig?.()?.vars ?? {}) as Record<string, string>;
     const agentId = input.agentId?.();
-    if (!vars.userId || !agentId) return;
+    if (!vars.userId || !vars.userToken || !agentId) {
+      disconnectStream();
+      connected = false;
+      connectedKey = '';
+      ack = undefined;
+      generation++;
+      setPendingBotMessages([]);
+      invalidateUnread();
+      return;
+    }
 
     const sessionId = getOrCreateSessionId(input.chatflowid(), vars.customerId, vars.userId);
 
@@ -74,9 +122,20 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
     //               subscribed to that channel at connect time. After a reset the
     //               old subscription can never receive the new session's cards,
     //               and Redis discards them silently.
-    if (connected && vars.userId === connectedUserId && sessionId === connectedSessionId) return;
+    const key = [vars.userId, agentId, sessionId, input.apiHost?.(), vars.userToken].join('|');
+    if (connected && key === connectedKey) return;
     if (connected) disconnectStream();
 
+    const epoch = ++generation;
+    const changedScope =
+      vars.userId !== connectedUserId ||
+      sessionId !== connectedSessionId ||
+      key.split('|').slice(0, 4).join('|') !== connectedKey.split('|').slice(0, 4).join('|');
+    if (changedScope) setPendingBotMessages([]);
+    invalidateUnread();
+    setUnreadCount(pendingBotMessages().length);
+    ack = undefined;
+    connectedKey = key;
     connected = true;
     connectedUserId = vars.userId;
     connectedSessionId = sessionId;
@@ -88,6 +147,24 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
       userToken: vars.userToken ?? '',
       sessionId,
       onEvent: (event: StreamEvent) => {
+        if (epoch !== generation) return;
+        if (event.type === 'ack') {
+          if (ack?.environment && ack.environment !== event.environment) {
+            setPendingBotMessages([]);
+            invalidateUnread();
+          }
+          ack = event;
+        }
+        if (event.type === 'pipeline_changed' || event.type === 'pipeline_report_changed' || (event.type === 'bot_message' && event.run_id)) {
+          if (
+            ack?.pipeline_reports !== true ||
+            event.user_id !== vars.userId ||
+            event.agent_id !== agentId ||
+            event.session_id !== sessionId ||
+            event.environment !== ack.environment
+          )
+            return;
+        }
         const botVisible = input.isBotVisible?.() ?? true;
 
         if (event.type === 'notification') {
@@ -103,7 +180,8 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
           // Hidden: buffer for replay on next open. Skip live fan-out so Bot
           // doesn't append a bubble the user can't see in context — matching
           // the notification branch above.
-          setPendingBotMessages((prev) => [...prev, event]);
+          if (event.message_id && pendingBotMessages().some((item) => item.message_id === event.message_id)) return;
+          setPendingBotMessages((prev) => [...prev, event].slice(-100));
           setUnreadCount((c) => c + 1);
           return;
         }
@@ -113,23 +191,43 @@ export function useAgUiStream(input: UseAgUiStreamInput): UseAgUiStreamOutput {
         }
       },
       onConnect: () => {
+        if (epoch !== generation) return;
         setStreamConnected(true);
         void refreshUnread();
       },
-      onDisconnect: () => setStreamConnected(false),
+      onDisconnect: () => {
+        if (epoch === generation) setStreamConnected(false);
+      },
+      onError: (error) => {
+        if (epoch !== generation) return;
+        if (['HTTP 401', 'HTTP 403'].includes(error)) {
+          ack = undefined;
+          setPendingBotMessages([]);
+          invalidateUnread();
+          for (const handler of untrack(streamEventHandlers)) handler({ type: 'ack', pipeline_reports: false, authorization_error: true });
+        }
+      },
     });
   });
 
-  onCleanup(() => disconnectStream());
+  onCleanup(() => {
+    ++generation;
+    invalidateUnread();
+    disconnectStream();
+  });
 
   const registerStreamHandler = (handler: (event: StreamEvent) => void) => {
     setStreamEventHandlers((prev) => [...prev, handler]);
+    if (ack) handler(ack);
     return () => setStreamEventHandlers((prev) => prev.filter((h) => h !== handler));
   };
 
   const consumePendingBotMessages = (): StreamEvent[] => {
     const drained = pendingBotMessages();
-    if (drained.length > 0) setPendingBotMessages([]);
+    if (drained.length > 0) {
+      setPendingBotMessages([]);
+      setUnreadCount((count) => Math.max(0, count - drained.length));
+    }
     return drained;
   };
 

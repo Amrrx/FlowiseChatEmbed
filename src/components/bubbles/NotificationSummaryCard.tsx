@@ -1,5 +1,6 @@
 import { Component, For, createSignal } from 'solid-js';
 import type { Notification } from '@/api/notifications';
+import { formatTimeAgo } from '@/utils';
 
 const LEVEL_BADGE: Record<string, { bg: string; color: string }> = {
   success: { bg: '#dcfce7', color: '#166534' },
@@ -14,22 +15,6 @@ const LEVEL_DOT: Record<string, string> = {
   warning: '#f59e0b',
   error: '#ef4444',
 };
-
-function formatTimeAgo(isoString: string): string {
-  const cleaned = isoString.replace(/([+-]\d{2}:\d{2})Z$/, '$1');
-  const ts = new Date(cleaned).getTime();
-  if (isNaN(ts)) return '';
-  const diff = Date.now() - ts;
-  if (diff < 0) return 'just now';
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 type Props = {
   notifications: Notification[];

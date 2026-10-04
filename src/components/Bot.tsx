@@ -1,5 +1,8 @@
-import { createSignal, createEffect, For, onMount, Show, mergeProps, on, createMemo, onCleanup } from 'solid-js';
+import { createSignal, createEffect, For, onMount, Show, mergeProps, on, createMemo, onCleanup, untrack } from 'solid-js';
 import { fetchQuickActions, QuickAction, QuickActionIdentity } from '@/api/quickActions';
+import { downloadPipelineResult, PIPELINE_DOWNLOAD_ACTION_ID, PipelineError, ReportFollowup } from '@/api/pipeline';
+import { useReports } from './reports/useReports';
+import { ReportsPanel, ReportsIcon } from './reports/ReportsPanel';
 import { SuggestedActions } from './SuggestedActions';
 import {
   sendMessageQuery,
@@ -139,6 +142,10 @@ export type AgentFlowExecutedData = {
 
 export type MessageType = {
   messageId?: string;
+  reportMessageId?: string;
+  reportRunId?: string;
+  reportScope?: string;
+  restartConversation?: boolean;
   message: string;
   type: messageType;
   sourceDocuments?: any;
@@ -158,6 +165,14 @@ export type MessageType = {
   card?: CardData;
   toolCalls?: ToolCallData[];
 };
+
+// Cards whose state is final when shown survive a page reload. Live or interactive cards
+// (progress, bulk progress, confirm, selection) depended on the page's event stream.
+const RESTORABLE_CARD_TYPES: CardData['type_id'][] = ['entity', 'bulk_summary'];
+
+const isPipelineCard = (message: MessageType): boolean => message.card?.data?.entity_type === 'pipeline_result';
+const isRestorableMessage = (message: MessageType): boolean =>
+  !isPipelineCard(message) && (message.type !== 'cardMessage' || (!!message.card && RESTORABLE_CARD_TYPES.includes(message.card.type_id)));
 
 type IUploads = {
   data: FilePreviewData;
@@ -723,6 +738,11 @@ const FormInputView = (props: {
   );
 };
 
+// Looked up by id at event time, not by a remembered position: cards remove completed tool
+// bubbles as they arrive, which shifts every later message's position.
+const findToolCallMessageIndex = (messages: MessageType[], toolCallId: string): number =>
+  messages.findIndex((m) => m.type === 'toolCallMessage' && m.toolCalls?.some((tc) => tc.toolCallId === toolCallId));
+
 const replaceMessageVariables = (message: string, sessionId: string): string => {
   // {sessionId} is the canonical template placeholder for the conversation identifier.
   // {chatId} kept as a legacy alias resolving to the same value.
@@ -833,7 +853,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   const [isLeadSaved, setIsLeadSaved] = createSignal(false);
   const [leadEmail, setLeadEmail] = createSignal('');
   const [disclaimerPopupOpen, setDisclaimerPopupOpen] = createSignal(false);
-  const [activeTask, setActiveTask] = createSignal<(TaskLockData & { progress_message?: string }) | null>(null);
+  // Running task locks keyed by task_id — several can run at once (e.g. maintenance submitted in one turn).
+  const [activeTasks, setActiveTasks] = createSignal<Record<string, TaskLockData>>({});
   const [compacting, setCompacting] = createSignal(false);
 
   const [openFeedbackDialog, setOpenFeedbackDialog] = createSignal(false);
@@ -954,10 +975,88 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     handleSubmit(prompt);
   });
 
+  const [reportEnvironment, setReportEnvironment] = createSignal('');
+  const reportScope = () => ({
+    apiHost: props.apiHost ?? '',
+    userId: String((props.chatflowConfig?.vars as any)?.userId ?? ''),
+    userToken: String((props.chatflowConfig?.vars as any)?.userToken ?? ''),
+    agentId: props.agentId ?? '',
+    sessionId: chatId(),
+    environment: reportEnvironment(),
+  });
+  const reportScopeKey = () => {
+    const s = reportScope();
+    return [s.apiHost, s.userId, s.agentId, s.sessionId, s.environment].join('|');
+  };
+  const [reportFollowups, setReportFollowups] = createSignal<ReportFollowup[]>([]);
+  const [internalReportQuestions, setInternalReportQuestions] = createSignal<string[]>([]);
+  createEffect(
+    on(
+      reportScopeKey,
+      () => {
+        setReportFollowups([]);
+        setInternalReportQuestions([]);
+        setMessages((messages) => messages.filter((message) => !message.reportRunId && !isPipelineCard(message)));
+      },
+      { defer: true },
+    ),
+  );
+  const queueReportFollowup = (event: ReportFollowup) => {
+    const s = reportScope();
+    if (!reports.enabled() || event.session_id !== s.sessionId || event.environment !== s.environment) return;
+    setReportFollowups((previous) => {
+      const existing = previous.findIndex((item) => item.message_id === event.message_id);
+      if (existing < 0) return [...previous, event];
+      if (JSON.stringify(previous[existing]) === JSON.stringify(event)) return previous;
+      return previous.map((item, index) => (index === existing ? event : item));
+    });
+  };
+  const reports = useReports(reportScope, () => props.chatOpened?.() ?? true, queueReportFollowup, setInternalReportQuestions, {
+    pendingRunIds: () =>
+      messages()
+        .filter((message) => isPipelineCard(message) && ['admitted', 'running'].includes(message.card?.data.status))
+        .map((message) => message.card!.data.run_id)
+        .filter(Boolean),
+    update: (runs) => {
+      const byId = new Map(runs.map((run) => [run.run_id, run]));
+      setMessages((previous) =>
+        previous.map((message) => {
+          if (!isPipelineCard(message)) return message;
+          const card = message.card!;
+          const run = byId.get(card.data.run_id);
+          if (!run) return message;
+          return {
+            ...message,
+            card: {
+              ...card,
+              data: {
+                ...card.data,
+                status: run.availability === 'expired' ? 'expired' : run.status,
+                row_count: run.result_summary?.row_count,
+                expected_count: run.result_summary?.expected_count,
+                complete: run.result_summary?.complete,
+                column_count: run.result_summary?.column_count,
+                expires_at: run.expires_at,
+              },
+            },
+          };
+        }),
+      );
+    },
+  });
+
+  createEffect(() => {
+    if (!reports.enabled()) {
+      setReportFollowups([]);
+      setInternalReportQuestions([]);
+      setMessages((previous) => previous.filter((message) => !message.reportRunId && !isPipelineCard(message)));
+    }
+  });
+
   // Persistent SSE connection for proactive event delivery
   const handleStreamEvent = (event: StreamEvent) => {
-    const task = activeTask();
-    if (task && event.task_id === task.task_id) {
+    const task = event.task_id ? activeTasks()[event.task_id] : undefined;
+    if (task) {
       const steps = (task.context?.steps ?? []) as Array<{ step_id: string; label: string; triggers: string[] }>;
       const isFinal = task.final_statuses?.includes(event.status);
 
@@ -991,16 +1090,29 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       }
 
       if (isFinal) {
-        setActiveTask(null);
+        setActiveTasks((prev) => {
+          const { [task.task_id]: _finished, ...running } = prev;
+          return running;
+        });
       }
       return;
     }
 
     switch (event.type) {
       case 'ack':
-        console.log('[STREAM] Connected:', event);
+        setReportEnvironment(typeof event.environment === 'string' ? event.environment : '');
+        queueMicrotask(() => reports.event(event));
+        break;
+      case 'pipeline_changed':
+      case 'pipeline_report_changed':
+        reports.event(event);
         break;
       case 'bot_message':
+        if (event.run_id) {
+          reports.event(event);
+          queueReportFollowup(event as ReportFollowup);
+          break;
+        }
         setMessages((prev) => [...prev, { message: event.text ?? '', type: 'apiMessage' }]);
         break;
       case 'notification': {
@@ -1017,7 +1129,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         ]);
         const apiHost = props.apiHost ?? '';
         const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
-        markNotificationsRead(apiHost, vars.userId ?? '', [notif.notification_id]).catch(/* no-op */ Function.prototype as () => void);
+        markNotificationsRead({ apiHost, userId: vars.userId ?? '', userToken: vars.userToken ?? '', agentId: props.agentId ?? '' }, [
+          notif.notification_id,
+        ]).catch(/* no-op */ Function.prototype as () => void);
         break;
       }
       case 'bulk_card':
@@ -1050,7 +1164,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   };
 
   createEffect(() => {
-    const unregister = stream.registerStreamHandler(handleStreamEvent);
+    const unregister = untrack(() => stream.registerStreamHandler(handleStreamEvent));
     // Refresh the unread snapshot each time Bot mounts — notifications that
     // arrived while the chat panel was closed were captured in useAgUiStream's
     // live signal but never rendered (handleStreamEvent wasn't registered).
@@ -1091,6 +1205,41 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   // Tracks per-notification_id to avoid duplicating items already rendered in
   // a prior summary — so re-opens only show items that arrived while closed.
   const [historyLoaded, setHistoryLoaded] = createSignal(false);
+  createEffect(() => {
+    if (!historyLoaded() || loading()) return;
+    const incoming = reportFollowups();
+    const internal = internalReportQuestions();
+    const scope = reportScopeKey();
+    if (!incoming.length && !internal.length) return;
+    setMessages((previous) => {
+      let merged = previous.filter(
+        (message) =>
+          !(message.type === 'userMessage' && internal.includes(message.message)) && (!message.reportScope || message.reportScope === scope),
+      );
+      for (const event of incoming) {
+        const matches = (message: MessageType) =>
+          message.reportMessageId === event.message_id ||
+          message.messageId === event.message_id ||
+          (!!event.flowise_message_id && (message.messageId === event.flowise_message_id || message.id === event.flowise_message_id));
+        const existingIndex = merged.findIndex(matches);
+        const existing = merged[existingIndex];
+        merged = merged.filter((message) => !matches(message));
+        const entry: MessageType = {
+          ...existing,
+          type: 'apiMessage',
+          message: event.text,
+          messageId: event.flowise_message_id || event.message_id,
+          reportMessageId: event.message_id,
+          reportRunId: event.run_id,
+          reportScope: scope,
+        };
+        if (existing) {
+          merged.splice(Math.min(existingIndex, merged.length), 0, entry);
+        } else merged.push(entry);
+      }
+      return merged;
+    });
+  });
   const renderedNotificationIds = new Set<string>();
   createEffect(() => {
     if (!historyLoaded()) return;
@@ -1104,7 +1253,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const apiHost = props.apiHost ?? '';
     const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
     const ids = newNotifs.map((n) => n.notification_id);
-    markNotificationsRead(apiHost, vars.userId ?? '', ids).catch(/* no-op */ Function.prototype as () => void);
+    markNotificationsRead({ apiHost, userId: vars.userId ?? '', userToken: vars.userToken ?? '', agentId: props.agentId ?? '' }, ids).catch(
+      /* no-op */ Function.prototype as () => void,
+    );
     stream.setUnreadCount(() => 0);
 
     setTimeout(() => {
@@ -1121,7 +1272,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     if (pending.length === 0) return;
     const drained = stream.consumePendingBotMessages();
     if (drained.length === 0) return;
-    setMessages((prev) => [...prev, ...drained.map((event) => ({ message: event.text ?? '', type: 'apiMessage' }) as MessageType)]);
+    drained.filter((event) => event.run_id).forEach((event) => queueReportFollowup(event as ReportFollowup));
+    setMessages((prev) => [
+      ...prev,
+      ...drained.filter((event) => !event.run_id).map((event) => ({ message: event.text ?? '', type: 'apiMessage' }) as MessageType),
+    ]);
     setTimeout(() => {
       chatContainer?.scrollTo(0, chatContainer.scrollHeight);
     }, 50);
@@ -1153,17 +1308,19 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
    * Add each chat message into localStorage
    */
   const addChatMessage = (allMessage: MessageType[]) => {
-    const messages = allMessage.map((item) => {
-      if (item.fileUploads) {
-        const fileUploads = item?.fileUploads.map((file) => ({
-          type: file.type,
-          name: file.name,
-          mime: file.mime,
-        }));
-        return { ...item, fileUploads };
-      }
-      return item;
-    });
+    const messages = allMessage
+      .filter((item) => !isPipelineCard(item))
+      .map((item) => {
+        if (item.fileUploads) {
+          const fileUploads = item?.fileUploads.map((file) => ({
+            type: file.type,
+            name: file.name,
+            mime: file.mime,
+          }));
+          return { ...item, fileUploads };
+        }
+        return item;
+      });
     setLocalStorageChatflow(props.chatflowid, chatId(), { chatHistory: messages });
   };
 
@@ -1224,6 +1381,24 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   };
 
   const addCardMessage = (card: CardData) => {
+    if (card.data?.entity_type === 'pipeline_result') {
+      const data = card.data;
+      card = {
+        ...card,
+        data: {
+          entity_type: 'pipeline_result',
+          run_id: data.run_id,
+          submission_ref: data.submission_ref,
+          title: data.title,
+          status: data.status,
+          row_count: data.row_count,
+          expected_count: data.expected_count,
+          complete: data.complete,
+          expires_at: data.expires_at,
+          column_count: data.column_count ?? data.columns?.length,
+        },
+      };
+    }
     setMessages((prevMessages) => {
       const allMessages = [...cloneDeep(prevMessages)];
       const cardMsg = { message: '', type: 'cardMessage' as messageType, card, dateTime: new Date().toISOString() };
@@ -1256,6 +1431,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       addChatMessage(allMessages);
       return allMessages;
     });
+    // Admission events can reach the widget before the tool's card is rendered.
+    if (card.data?.entity_type === 'pipeline_result' && card.data.run_id) void reports.refresh();
   };
 
   // Bulk cards republish with a fresh card_id on every update — match on the
@@ -1416,13 +1593,13 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
   };
 
   // Handle errors
-  const handleError = (message = 'Oops! There seems to be an error. Please try again.', preventOverride?: boolean) => {
+  const handleError = (message = 'Oops! There seems to be an error. Please try again.', preventOverride?: boolean, restartConversation = false) => {
     let errMessage = message;
     if (!preventOverride && props.errorMessage) {
       errMessage = props.errorMessage;
     }
     setMessages((prevMessages) => {
-      const messages: MessageType[] = [...prevMessages, { message: errMessage, type: 'apiMessage' }];
+      const messages: MessageType[] = [...prevMessages, { message: errMessage, type: 'apiMessage', restartConversation }];
       addChatMessage(messages);
       return messages;
     });
@@ -1595,7 +1772,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
     let lastProgressCardId: string | null = null;
     let compactedThisTurn = false;
-    const toolCallMessageIndex = new Map<string, number>();
+    let recoverableDraft: string | undefined;
+    const reportsTurn = reports.enabled();
 
     const aguiHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -1605,6 +1783,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const vars = (props.chatflowConfig?.vars ?? {}) as Record<string, string>;
     if (vars.userId) aguiHeaders['X-User-ID'] = vars.userId;
     if (vars.userToken) aguiHeaders['X-User-Token'] = vars.userToken;
+    aguiHeaders['X-Session-ID'] = chatIdVal;
 
     fetchEventSource(predictionUrl(), {
       openWhenHidden: true,
@@ -1614,7 +1793,33 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       async onopen(response) {
         if (response.ok) return;
         const errMessage = (await response.text()) ?? 'Request failed';
-        handleError(errMessage, response.status === 429);
+        if (!reportsTurn) {
+          handleError(errMessage, response.status === 429);
+          throw new Error(errMessage);
+        }
+        let failure: { error?: string; detail?: string; preserve_draft?: boolean } = {};
+        try {
+          failure = JSON.parse(errMessage);
+        } catch {
+          /* Non-JSON refusal. */
+        }
+        if (failure.preserve_draft === true || response.status === 409 || response.status === 503) {
+          recoverableDraft = typeof params.question === 'string' ? params.question : userInput();
+        }
+        const uncertain = response.status === 503 && failure.error === 'conversation_uncertain';
+        const detail = typeof failure.detail === 'string' ? failure.detail : undefined;
+        const fallback =
+          recoverableDraft !== undefined
+            ? 'Chat is busy or temporarily unavailable. Your draft is preserved; please try again.'
+            : 'Unable to send your message. Please try again.';
+        handleError(
+          uncertain
+            ? 'The previous reply’s outcome is unconfirmed. Start a new chat or contact support. Your draft is preserved.'
+            : detail ?? fallback,
+          true,
+          uncertain,
+        );
+        if (response.status === 401 || response.status === 403) reports.event({ type: 'ack', pipeline_reports: false, authorization_error: true });
         throw new Error(errMessage);
       },
       onmessage(ev) {
@@ -1642,13 +1847,14 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
           case 'card':
             addCardMessage(action.card);
+            if (action.card.data?.run_id) void reports.refresh();
             if (action.card.type_id === 'progress') {
               lastProgressCardId = action.card.card_id;
             }
             break;
 
           case 'task_lock':
-            setActiveTask(action.lock);
+            setActiveTasks((prev) => ({ ...prev, [action.lock.task_id]: action.lock }));
             break;
 
           case 'state_delta':
@@ -1662,7 +1868,6 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             setMessages((prev) => {
               const all = [...cloneDeep(prev)];
               all.push({ message: '', type: 'toolCallMessage' as messageType, toolCalls: [tcData] });
-              toolCallMessageIndex.set(action.toolCallId, all.length - 1);
               return all;
             });
             break;
@@ -1671,8 +1876,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           case 'tool_call_args': {
             setMessages((prev) => {
               const all = [...cloneDeep(prev)];
-              const msgIdx = toolCallMessageIndex.get(action.toolCallId);
-              if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
+              const msgIdx = findToolCallMessageIndex(all, action.toolCallId);
+              if (msgIdx === -1) return all;
               all[msgIdx] = {
                 ...all[msgIdx],
                 toolCalls: all[msgIdx].toolCalls!.map((tc) => (tc.toolCallId === action.toolCallId ? { ...tc, args: tc.args + action.delta } : tc)),
@@ -1685,8 +1890,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
           case 'tool_call_end': {
             setMessages((prev) => {
               const all = [...cloneDeep(prev)];
-              const msgIdx = toolCallMessageIndex.get(action.toolCallId);
-              if (msgIdx === undefined || !all[msgIdx]?.toolCalls) return all;
+              const msgIdx = findToolCallMessageIndex(all, action.toolCallId);
+              if (msgIdx === -1) return all;
               all[msgIdx] = {
                 ...all[msgIdx],
                 // Don't overwrite a 'cancelled' status — that was set by the user
@@ -1729,9 +1934,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       onerror(err) {
         console.error('AG-UI EventSource Error:', err);
         closeResponse();
+        if (recoverableDraft !== undefined) setUserInput(recoverableDraft);
         throw err;
       },
-    });
+    }).catch(() => undefined);
   };
 
   const hideAutoMessageLoader = () => {
@@ -1910,7 +2116,42 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     await fetchResponseFromAGUIStream(endpointId(), body);
   };
 
-  const handleCardAction = (card: CardData, action: CardAction, payload: Record<string, any>) => {
+  // Workbook downloads belong to the user who started them: a user switch (or unmount) aborts every download
+  // in flight, so the previous user's file is never saved in the next user's session.
+  let pipelineDownloads = new AbortController();
+  createEffect(
+    on(
+      reportScopeKey,
+      () => {
+        pipelineDownloads.abort();
+        pipelineDownloads = new AbortController();
+      },
+      { defer: true },
+    ),
+  );
+  onCleanup(() => pipelineDownloads.abort());
+
+  const handleCardAction = (card: CardData, action: CardAction, payload: Record<string, any>): void | Promise<void> => {
+    if (action.action_id === 'open_reports') {
+      const runId = payload.run_id ?? card.data.run_id;
+      if (runId) void reports.openReport(String(runId));
+      else if (payload.submission_ref ?? card.data.submission_ref) void reports.reconcile(String(payload.submission_ref ?? card.data.submission_ref));
+      return;
+    }
+    if (action.action_id === PIPELINE_DOWNLOAD_ACTION_ID) {
+      // A local download, not a chat turn: only the dataset reference leaves the card.
+      return downloadPipelineResult({
+        ...reportScope(),
+        runId: String(payload.run_id ?? card.data.run_id),
+        title: typeof card.data.title === 'string' ? card.data.title : undefined,
+        admittedAt: typeof card.data.admitted_at === 'string' ? card.data.admitted_at : undefined,
+        signal: pipelineDownloads.signal,
+      }).catch((error) => {
+        if (error instanceof PipelineError && [401, 403].includes(error.status))
+          reports.event({ type: 'ack', pipeline_reports: false, authorization_error: true });
+        throw error;
+      });
+    }
     sendCardInteraction({
       card_id: card.card_id,
       action_id: action.action_id,
@@ -2242,6 +2483,10 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             ? chatMessage.chatHistory?.map((message: MessageType) => {
                 const chatHistory: MessageType = {
                   messageId: message?.messageId,
+                  reportMessageId: message.reportMessageId,
+                  reportRunId: message.reportRunId,
+                  reportScope: message.reportScope,
+                  restartConversation: message.restartConversation,
                   message: message.message,
                   type: message.type,
                   rating: message.rating,
@@ -2254,6 +2499,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                 if (message.action) chatHistory.action = message.action;
                 if (message.artifacts) chatHistory.artifacts = message.artifacts;
                 if (message.followUpPrompts) chatHistory.followUpPrompts = message.followUpPrompts;
+                if (message.id) chatHistory.id = message.id;
+                if (message.card) chatHistory.card = message.card;
                 if (message.execution && message.execution.executionData)
                   chatHistory.agentFlowExecutedData =
                     typeof message.execution.executionData === 'string'
@@ -2266,8 +2513,9 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               })
             : [{ message: props.welcomeMessage ?? defaultWelcomeMessage, type: 'apiMessage' }];
 
-        const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage');
+        const filteredMessages = loadedMessages.filter((message) => message.type !== 'leadCaptureMessage' && isRestorableMessage(message));
         setMessages([...filteredMessages]);
+        if (loadedMessages.some(isPipelineCard)) setLocalStorageChatflow(props.chatflowid, chatMessage.chatId, { chatHistory: filteredMessages });
       }
     } catch (e) {
       // A corrupt stored session must not take the rest of this effect down with it:
@@ -2792,7 +3040,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     const messagesArray = messages();
     const disabled =
       loading() ||
-      !!activeTask() ||
+      Object.keys(activeTasks()).length > 0 ||
       !props.chatflowid ||
       (leadsConfig()?.status && !isLeadSaved()) ||
       (messagesArray.length > 0 &&
@@ -3385,6 +3633,16 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
 
   return (
     <>
+      <ReportsPanel
+        controller={reports}
+        anchor={() => botContainer}
+        mount={props.overlayMount}
+        visible={props.chatOpened?.() ?? true}
+        background={props.backgroundColor}
+        color={props.botMessage?.textColor}
+        accent={props.textInput?.sendButtonColor}
+        onRetry={(title) => setUserInput(`Please create a fresh report: ${title}`)}
+      />
       {startInputType() === 'formInput' && messages().length === 1 ? (
         <FormInputView
           title={formTitle()}
@@ -3487,6 +3745,21 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                   chatOpened={props.chatOpened}
                 />
               </Show>
+              <Show when={reports.enabled()}>
+                <button
+                  type="button"
+                  data-reports-button
+                  class="flex items-center gap-1 p-2"
+                  aria-label="Reports"
+                  aria-expanded={reports.open()}
+                  onClick={() => (reports.open() ? reports.setOpen(false) : reports.openReport())}
+                >
+                  <ReportsIcon />
+                  <Show when={(reports.counts().queued ?? 0) + (reports.counts().running ?? 0)}>
+                    <span>{(reports.counts().queued ?? 0) + (reports.counts().running ?? 0)}</span>
+                  </Show>
+                </button>
+              </Show>
               <DeleteButton
                 sendButtonColor={props.bubbleTextColor}
                 type="button"
@@ -3507,6 +3780,11 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
               }
               style={props.titleHeight ? { 'padding-top': `${props.titleHeight + 14}px` } : undefined}
             >
+              <Show when={reports.refusal()}>
+                <p class="rounded border px-3 py-2 mb-2 text-sm" role="alert">
+                  {reports.refusal()}
+                </p>
+              </Show>
               <For each={[...messages()]}>
                 {(message, index) => {
                   return (
@@ -3556,6 +3834,30 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
                           handleTTSStop={handleTTSStop}
                         />
                       )}
+                      <Show when={message.restartConversation}>
+                        <button
+                          type="button"
+                          class="self-start rounded border px-3 py-1 mb-2 text-sm"
+                          onClick={() => {
+                            const draft = userInput();
+                            clearChat();
+                            setUserInput(draft);
+                          }}
+                        >
+                          Start new chat
+                        </button>
+                      </Show>
+                      <Show when={message.reportRunId && reports.enabled()}>
+                        <button
+                          type="button"
+                          class="report-open-button self-start mb-2"
+                          style={{ '--report-accent': props.textInput?.sendButtonColor ?? '#3b81f6' }}
+                          onClick={() => reports.openReport(message.reportRunId)}
+                        >
+                          <ReportsIcon />
+                          Open report
+                        </button>
+                      </Show>
                       {message.type === 'leadCaptureMessage' && leadsConfig()?.status && !getLocalStorageChatflow(props.chatflowid)?.lead && (
                         <LeadCaptureBubble
                           message={message}

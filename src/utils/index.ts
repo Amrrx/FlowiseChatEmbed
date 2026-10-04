@@ -1,3 +1,5 @@
+import { createSignal } from 'solid-js';
+
 export const isNotDefined = <T>(value: T | undefined | null): value is undefined | null => value === undefined || value === null;
 
 export const isDefined = <T>(value: T | undefined | null): value is NonNullable<T> => value !== undefined && value !== null;
@@ -151,4 +153,27 @@ export const getCookie = (cname: string): string => {
     }
   }
   return '';
+};
+
+const CLOCK_TICK_MS = 30_000;
+const [clock, setClock] = createSignal(Date.now());
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+
+// Current time as a signal: readers re-render every tick, so relative times stay current.
+// The timer starts on first read, so pages that never show a relative time pay nothing.
+const currentTime = (): number => {
+  if (clockTimer === undefined) clockTimer = setInterval(() => setClock(Date.now()), CLOCK_TICK_MS);
+  return clock();
+};
+
+export const formatTimeAgo = (isoString: string): string => {
+  const ts = new Date(isoString.replace(/([+-]\d{2}:\d{2})Z$/, '$1')).getTime();
+  if (isNaN(ts)) return '';
+  const seconds = Math.floor((currentTime() - ts) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 };

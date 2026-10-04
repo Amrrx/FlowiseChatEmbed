@@ -214,6 +214,25 @@ You can also customize chatbot with different configuration
 </script>
 ```
 
+## Reports panel (Mosaad AG-UI integration)
+
+When the MCP gateway acknowledges Reports support for the authenticated agent, the widget shows a Reports
+button. My reports lists the authenticated user's queued, running, ready, failed, cancelled and expired reports
+across conversations within the same environment and agent; chat reset does not remove access to prior reports;
+ready reports offer a bounded preview and an authenticated Excel download until their result expires.
+Completion messages remain in the originating conversation and can reopen the corresponding report. Users can continue chatting while reports run.
+
+- Requires the compatible Mosaad MCP/backend deployment and per-agent Reports policy. A widget update alone
+  does not enable reporting. Existing agents without the capability keep their current behavior.
+- Use the normal current user credentials and conversation session. Report rows are not stored in local chat
+  history; preview and download requests are freshly authorized.
+- Filter chips support wheel, mouse drag, native touch swipes and keyboard navigation with a hidden scrollbar.
+- Build the production bundle with the existing build command before publishing. Do not publish local
+  `public/index.html` settings or credentials. Host input limits belong to the deployment theme; align
+  `textInput.maxChars` with the agent's configured question limit.
+- Release scope, SDK/backend/MCP dependencies and production acceptance are tracked in the MCP repository's
+  `docs/plans/2026-10-03-pipeline-reports-panel.md`, Release preparation section.
+
 ## (Experimental) Proxy Server Setup
 
 The Flowise Embed Proxy Server enhances the security of your chatbot implementation by acting as a protective intermediary layer. This server eliminates the need to expose sensitive Flowise instance details in your frontend code and provides several key security benefits:

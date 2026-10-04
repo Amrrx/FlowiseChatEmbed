@@ -3,6 +3,7 @@ import { Dynamic } from 'solid-js/web';
 import type { CardData, CardAction } from '../../agui/types';
 import { DeviceCardBubble } from './DeviceCardBubble';
 import { HealthCheckCardBubble } from './HealthCheckCardBubble';
+import { PipelineResultCardBubble } from './PipelineResultCardBubble';
 
 type Props = {
   card: CardData;
@@ -16,6 +17,7 @@ type Props = {
 const ENTITY_RENDERERS: Record<string, Component<Props>> = {
   device: DeviceCardBubble,
   health_check: HealthCheckCardBubble,
+  pipeline_result: PipelineResultCardBubble,
 };
 
 const FIELD_EXCLUDES = ['entity_type'];
