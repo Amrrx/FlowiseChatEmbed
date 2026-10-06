@@ -1,8 +1,10 @@
 import { QuickAction } from '@/api/quickActions';
+import type { QuickActionsTheme } from '@/features/bubble/types';
 type Props = {
     actions?: QuickAction[];
     disabled?: boolean;
     onActionClick?: (payload: string, id: string) => void;
+    theme?: QuickActionsTheme;
 };
 /**
  * Curated per-agent action buttons, pinned above the composer.

@@ -168,6 +168,8 @@ type Props = {
   /** Stream handler registrar — lets us light the LED live on an `announcement` frame. */
   registerStreamHandler: (handler: (event: any) => void) => () => void;
   color?: string;
+  /** Outlined 36px trigger matching the header's ⋮ button; value is the border color. */
+  outlinedBorderColor?: string;
   /**
    * Mount target for the full-viewport overlay. The trigger lives in the chat header,
    * which sits inside a `transform: scale3d` window that traps `position: fixed` to the
@@ -322,13 +324,23 @@ export const AnnouncementsButton = (props: Props) => {
         onClick={openOverlay}
         style={{
           position: 'relative',
-          background: 'transparent',
-          border: 'none',
           cursor: 'pointer',
-          padding: '6px',
           display: 'flex',
           'align-items': 'center',
           color: props.color || 'currentColor',
+          ...(props.outlinedBorderColor
+            ? {
+                'justify-content': 'center',
+                width: '36px',
+                height: '36px',
+                'flex-shrink': '0',
+                padding: '0',
+                background: '#FFFFFF',
+                border: `1px solid ${props.outlinedBorderColor}`,
+                'border-radius': '8px',
+                'box-shadow': '0 1px 2px rgba(10, 13, 18, 0.05)',
+              }
+            : { background: 'transparent', border: 'none', padding: '6px' }),
         }}
       >
         <svg
@@ -337,7 +349,7 @@ export const AnnouncementsButton = (props: Props) => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width={props.outlinedBorderColor ? '1.67' : '2'}
           stroke-linecap="round"
           stroke-linejoin="round"
         >
@@ -349,8 +361,8 @@ export const AnnouncementsButton = (props: Props) => {
             data-testid="announcement-unread-led"
             style={{
               position: 'absolute',
-              top: '2px',
-              right: '2px',
+              top: props.outlinedBorderColor ? '-6px' : '2px',
+              right: props.outlinedBorderColor ? '-6px' : '2px',
               'min-width': '15px',
               height: '15px',
               padding: '0 4px',

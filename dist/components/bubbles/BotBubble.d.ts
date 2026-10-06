@@ -11,6 +11,10 @@ type Props = {
     avatarSrc?: string;
     backgroundColor?: string;
     textColor?: string;
+    borderRadius?: number;
+    padding?: string;
+    boxShadow?: string;
+    bubbleFontSize?: number;
     chatFeedbackStatus?: boolean;
     fontSize?: number;
     feedbackColor?: string;

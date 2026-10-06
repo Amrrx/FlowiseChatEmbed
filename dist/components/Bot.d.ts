@@ -4,6 +4,8 @@ import { FilePreview } from '@/components/inputs/textInput/components/FilePrevie
 import type { CardData, ToolCallData } from '@/agui/types';
 import type { StreamEvent } from '@/agui/stream';
 import { AnnouncementsController } from './AnnouncementsButton';
+import { SwitchableLayout } from './HeaderMenu';
+import type { HeaderTheme, QuickActionsTheme } from '@/features/bubble/types';
 import type { Notification } from '@/api/notifications';
 export type FileEvent<T = EventTarget> = {
     target: T;
@@ -127,6 +129,12 @@ export type BotProps = {
     isFullPage?: boolean;
     squareCorners?: boolean;
     titleHeight?: number;
+    cornerRadius?: number;
+    header?: HeaderTheme;
+    quickActionsTheme?: QuickActionsTheme;
+    currentLayout?: SwitchableLayout;
+    onSwitchLayout?: (layout: SwitchableLayout) => void;
+    showCloseInTitle?: boolean;
     footer?: FooterTheme;
     sourceDocsTitle?: string;
     observersConfig?: observersConfigType;

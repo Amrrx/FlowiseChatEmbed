@@ -23,6 +23,12 @@ type TextInputProps = {
     fullFileUploadAllowedTypes?: string;
     enableInputHistory?: boolean;
     maxHistorySize?: number;
+    squareCorners?: boolean;
+    variant?: 'default' | 'outlined';
+    borderColor?: string;
+    focusBorderColor?: string;
+    borderRadius?: number;
+    inputFontSize?: number;
 };
 export declare const TextInput: (props: TextInputProps) => import("solid-js").JSX.Element;
 export {};
