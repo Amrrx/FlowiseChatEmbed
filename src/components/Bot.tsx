@@ -20,6 +20,7 @@ import { GuestBubble } from './bubbles/GuestBubble';
 import { BotBubble } from './bubbles/BotBubble';
 import { LoadingBubble } from './bubbles/LoadingBubble';
 import { StarterPromptBubble } from './bubbles/StarterPromptBubble';
+import { localExpiresAt, resolveOutcomeAction } from './bubbles/confirmCardState';
 import {
   BotMessageTheme,
   FooterTheme,
@@ -1158,6 +1159,7 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
             message: event.message,
             danger: event.danger,
             wait_id: event.wait_id,
+            expires_at: localExpiresAt(event.expires_in_s, event.expires_at, Date.now()),
           },
           actions: rawActions.map((a) => ({
             action_id: a.action_id ?? a.id,
@@ -2081,6 +2083,20 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
     return uploads;
   };
 
+  /** Apply the server's reply to a card answer (kept on card.data so it survives remounts). */
+  const applyResolveOutcome = (cardId: string, outcome: 'keep' | 'expired' | 'reopen') => {
+    if (outcome === 'keep') return;
+    setMessages((prev) => {
+      const updated = [...cloneDeep(prev)];
+      const target = updated.find((msg) => msg.card?.card_id === cardId);
+      if (!target?.card) return prev;
+      if (outcome === 'expired') (target.card.data as any).submitted_action = 'expired';
+      else delete (target.card.data as any).submitted_action;
+      addChatMessage(updated);
+      return updated;
+    });
+  };
+
   const sendCardInteraction = async (interaction: CardInteraction) => {
     const isHitlResolve = !!interaction.wait_id;
 
@@ -2113,13 +2129,15 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
       if (vars.userId) headers['X-User-ID'] = vars.userId;
       if (vars.userToken) headers['X-User-Token'] = vars.userToken;
       try {
-        await fetch(predictionUrl(), {
+        const response = await fetch(predictionUrl(), {
           method: 'POST',
           headers,
           body: JSON.stringify(body),
         });
+        applyResolveOutcome(interaction.card_id, resolveOutcomeAction(response.status));
       } catch (err) {
         console.error('HITL card resolve failed', err);
+        applyResolveOutcome(interaction.card_id, resolveOutcomeAction(null));
       }
       return;
     }

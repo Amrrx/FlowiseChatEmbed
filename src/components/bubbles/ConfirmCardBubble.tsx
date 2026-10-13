@@ -1,5 +1,6 @@
-import { For, Show } from 'solid-js';
+import { For, Show, createEffect, createSignal, onCleanup } from 'solid-js';
 import type { CardData, CardAction } from '../../agui/types';
+import { confirmCardState, msUntilExpiry } from './confirmCardState';
 
 type Props = {
   card: CardData;
@@ -91,11 +92,19 @@ export const ConfirmCardBubble = (props: Props) => {
   const message = () => (props.card.data.message as string) ?? '';
   const danger = () => props.card.data.danger === true;
   const waitId = () => (props.card.data.wait_id as string) ?? '';
-  // Submitted state is stored on the card itself so it survives Bot.tsx's
+  // The answer is stored on the card itself (submitted_action) so it survives Bot.tsx's
   // cloneDeep-induced component remounts during LLM streaming updates.
-  const submittedAction = () => (props.card.data.submitted_action as string | undefined) ?? null;
-  const submitted = () => submittedAction() !== null;
-  const wasApproved = () => submittedAction() === 'approve';
+  const [now, setNow] = createSignal(Date.now());
+  createEffect(() => {
+    const untilExpiry = msUntilExpiry(props.card.data, Date.now());
+    if (untilExpiry === null) return;
+    const timer = setTimeout(() => setNow(Date.now()), untilExpiry);
+    onCleanup(() => clearTimeout(timer));
+  });
+  const state = () => confirmCardState(props.card.data, now());
+  const submitted = () => state() !== 'open';
+  const wasApproved = () => state() === 'approved';
+  const resultLabel = () => ({ approved: 'Approved', cancelled: 'Cancelled', expired: 'Expired', open: '' })[state()];
 
   const accent = () => (danger() ? '#ef4444' : accentFor(props.card.card_id));
   const stripeColor = () => {
@@ -146,7 +155,7 @@ export const ConfirmCardBubble = (props: Props) => {
               <Show when={wasApproved()} fallback={<CrossIcon />}>
                 <CheckIcon />
               </Show>
-              <span>{wasApproved() ? 'Approved' : 'Cancelled'}</span>
+              <span>{resultLabel()}</span>
             </div>
           }
         >

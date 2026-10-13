@@ -3,6 +3,7 @@ import { Portal } from 'solid-js/web';
 import { ReportState } from '@/api/pipeline';
 import { reportActive, reportState, ReportsController } from './useReports';
 import { ReportPreviewTable, formatReportCell } from './ReportPreviewTable';
+import { stepLabel } from './reportLabels';
 const states: ReportState[] = ['all', 'queued', 'running', 'ready', 'failed', 'cancelled', 'expired'];
 const date = (value?: string | null) => (value ? new Date(value).toLocaleString() : '—');
 const label = (state: string) => state.charAt(0).toUpperCase() + state.slice(1);
@@ -219,9 +220,7 @@ export const ReportsPanel = (props: {
                       {(step) => (
                         <li>
                           <span>{['done', 'completed', 'ready'].includes(step.status) ? '✓' : step.status === 'failed' ? '×' : '○'}</span>
-                          <span>
-                            {step.name} <small>{step.op}</small>
-                          </span>
+                          <span>{stepLabel(step.op)}</span>
                           <small>{label(step.status)}</small>
                         </li>
                       )}
