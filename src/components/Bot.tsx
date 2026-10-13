@@ -1147,6 +1147,8 @@ export const Bot = (botProps: BotProps & { class?: string }) => {
         upsertBulkCard(event.card as CardData);
         break;
       case 'confirm_card': {
+        // The server re-sends open cards when the stream reconnects; a card already shown stays single.
+        if (messages().some((m) => m.card?.card_id === event.wait_id)) break;
         const rawActions = (event.actions ?? []) as Array<Record<string, any>>;
         const confirmCard: CardData = {
           card_id: event.wait_id,
