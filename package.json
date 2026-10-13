@@ -12,6 +12,7 @@
     "lint-fix": "eslint --fix \"src/**/*.ts*\"",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,md,mdx}\"",
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,md,mdx}\"",
+    "test": "vitest run",
     "prepare": "husky install",
     "start": "node server.js"
   },
@@ -70,6 +71,7 @@
     "rollup-plugin-uglify": "^6.0.4",
     "tailwindcss": "3.3.1",
     "typescript": "5.0.3",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "vitest": "3.2.4"
   }
 }

@@ -1,5 +1,6 @@
 import { For, Show, createSignal } from 'solid-js';
 import type { ReportPreview } from '@/api/pipeline';
+import { columnLabel } from './reportLabels';
 export const formatReportCell = (value: unknown): string =>
   value == null || value === '' ? '—' : typeof value === 'object' ? JSON.stringify(value) : String(value);
 /** Bounded horizontally scrolling preview with keyboard-accessible full cell inspection. */
@@ -11,7 +12,7 @@ export const ReportPreviewTable = (props: Pick<ReportPreview, 'columns' | 'previ
         <table>
           <thead>
             <tr>
-              <For each={props.columns}>{(column) => <th>{column.key}</th>}</For>
+              <For each={props.columns}>{(column) => <th title={column.key}>{columnLabel(column.key)}</th>}</For>
             </tr>
           </thead>
           <tbody>
