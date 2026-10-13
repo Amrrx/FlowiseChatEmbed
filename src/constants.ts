@@ -1,6 +1,6 @@
 import type { BubbleProps } from './features/bubble';
 
-export const appVersion = '3.14.0';
+export const appVersion = '3.14.1';
 
 export const defaultBotProps: BubbleProps = {
   chatflowid: '',
